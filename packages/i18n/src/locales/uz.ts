@@ -1,0 +1,107 @@
+/** Uzbek — the platform's default language. Every key must exist here. */
+export const uz = {
+  common: {
+    save: 'Saqlash', cancel: 'Bekor qilish', delete: 'O‘chirish', edit: 'Tahrirlash',
+    add: 'Qo‘shish', search: 'Qidirish', filter: 'Filtr', export: 'Eksport',
+    back: 'Orqaga', next: 'Keyingi', confirm: 'Tasdiqlash', close: 'Yopish',
+    loading: 'Yuklanmoqda...', saving: 'Saqlanmoqda...', retry: 'Qayta urinish',
+    yes: 'Ha', no: 'Yo‘q', all: 'Barchasi', none: 'Yo‘q', total: 'Jami',
+    today: 'Bugun', yesterday: 'Kecha', week: '7 kun', month: '30 kun', custom: 'Boshqa davr',
+    active: 'Faol', inactive: 'Nofaol', archived: 'Arxivlangan', required: 'Majburiy maydon',
+  },
+  nav: {
+    dashboard: 'Bosh sahifa', customers: 'Mijozlar', products: 'Mahsulotlar',
+    services: 'Xizmatlar', orders: 'Buyurtmalar', bookings: 'Bronlar',
+    employees: 'Xodimlar', branches: 'Filiallar', inventory: 'Ombor',
+    loyalty: 'Bonus tizimi', promos: 'Promokodlar', marketing: 'Marketing',
+    messages: 'Xabarlar', analytics: 'Analitika', telegram: 'Telegram',
+    integrations: 'Integratsiyalar', settings: 'Sozlamalar', team: 'Jamoa',
+  },
+  auth: {
+    login: 'Kirish', register: 'Ro‘yxatdan o‘tish', logout: 'Chiqish',
+    email: 'Email', password: 'Parol', forgotPassword: 'Parolni unutdingizmi?',
+    invalidCredentials: 'Email yoki parol noto‘g‘ri',
+    emailTaken: 'Bu email allaqachon ro‘yxatdan o‘tgan',
+    accountLocked: 'Hisob vaqtincha bloklandi. Keyinroq urinib ko‘ring.',
+  },
+  empty: {
+    products: 'Hozircha mahsulotlar mavjud emas.',
+    productsCta: 'Mahsulot qo‘shish',
+    customers: 'Hali mijozlar yo‘q. Telegram bot ishga tushgach, mijozlaringiz shu yerda paydo bo‘ladi.',
+    orders: 'Hali buyurtmalar yo‘q.',
+    bookings: 'Hali bronlar yo‘q.',
+    services: 'Xizmatlar qo‘shilmagan.',
+    servicesCta: 'Xizmat qo‘shish',
+    employees: 'Xodimlar qo‘shilmagan.',
+    search: 'Hech narsa topilmadi.',
+  },
+  order: {
+    number: 'Buyurtma raqami', status: 'Holat', customer: 'Mijoz', total: 'Jami summa',
+    subtotal: 'Mahsulotlar', discount: 'Chegirma', deliveryFee: 'Yetkazib berish',
+    paymentStatus: 'To‘lov holati', comment: 'Izoh',
+    statuses: {
+      NEW: 'Yangi', ACCEPTED: 'Qabul qilindi', PREPARING: 'Tayyorlanmoqda',
+      READY: 'Tayyor', DELIVERING: 'Yetkazilmoqda', COMPLETED: 'Yakunlandi',
+      CANCELLED: 'Bekor qilindi',
+    },
+    fulfillment: { DELIVERY: 'Yetkazib berish', PICKUP: 'Olib ketish', DINE_IN: 'Zalda' },
+  },
+  booking: {
+    service: 'Xizmat', employee: 'Xodim', branch: 'Filial', date: 'Sana', time: 'Vaqt',
+    duration: 'Davomiyligi', noSlots: 'Bu kunda bo‘sh vaqt yo‘q',
+    statuses: {
+      PENDING: 'Kutilmoqda', CONFIRMED: 'Tasdiqlandi', ARRIVED: 'Keldi',
+      IN_PROGRESS: 'Jarayonda', COMPLETED: 'Yakunlandi',
+      CANCELLED: 'Bekor qilindi', NO_SHOW: 'Kelmadi',
+    },
+  },
+  bot: {
+    welcome: '{{businessName}}ga xush kelibsiz! 👋',
+    menuPrompt: 'Nima qilmoqchisiz?',
+    catalog: '🛍 Katalog', menu: '🍽 Menyu', book: '📅 Bron qilish',
+    myOrders: '📦 Buyurtmalarim', myBookings: '📅 Bronlarim', bonus: '⭐ Bonuslarim',
+    branches: '📍 Filiallar', operator: '💬 Operator', profile: '👤 Profil',
+    openApp: '🚀 Ilovani ochish',
+    orderCreated: '✅ Buyurtmangiz qabul qilindi!\nRaqam: {{orderNumber}}\nSumma: {{total}}',
+    orderStatusChanged: '📦 {{orderNumber}} buyurtmangiz holati: {{status}}',
+    orderReady: '✅ {{orderNumber}} buyurtmangiz tayyor.',
+    bookingCreated: '✅ Bron tasdiqlandi!\n{{service}}\n{{date}} {{time}}\n{{employee}}',
+    bookingReminder: '⏰ Eslatma: {{date}} {{time}} da {{service}} uchun bronigiz bor.',
+    bookingCancelled: '❌ {{date}} {{time}} dagi bron bekor qilindi.',
+    loyaltyEarned: '⭐ Sizga {{amount}} bonus qo‘shildi. Umumiy: {{balance}}',
+    paymentSuccess: '💳 To‘lov muvaffaqiyatli qabul qilindi: {{amount}}',
+    operatorConnected: '💬 Operator tez orada javob beradi. Savolingizni yozing.',
+    unknownCommand: 'Buyruq tushunarsiz. Menyudan tanlang.',
+  },
+  errors: {
+    INTERNAL: 'Tizimda xatolik yuz berdi. Keyinroq urinib ko‘ring.',
+    VALIDATION_FAILED: 'Kiritilgan ma’lumotlar noto‘g‘ri.',
+    NOT_FOUND: 'Topilmadi.',
+    FORBIDDEN: 'Sizda bu amal uchun ruxsat yo‘q.',
+    NOT_A_MEMBER: 'Siz bu biznes a’zosi emassiz.',
+    MODULE_DISABLED: 'Bu modul yoqilmagan.',
+    UPGRADE_REQUIRED: 'Bu imkoniyat yuqoriroq tarifda mavjud.',
+    RATE_LIMITED: 'Juda ko‘p so‘rov. Biroz kuting.',
+    INSUFFICIENT_STOCK: 'Omborda yetarli mahsulot yo‘q.',
+    CART_EMPTY: 'Savat bo‘sh.',
+    BOOKING_SLOT_TAKEN: 'Bu vaqt band qilingan. Iltimos, boshqa vaqt tanlang.',
+    BOOKING_OUTSIDE_WORKING_HOURS: 'Bu vaqt ish vaqtidan tashqarida.',
+    BOOKING_TOO_SOON: 'Bron uchun juda kech. Keyinroq vaqt tanlang.',
+    PROMO_NOT_FOUND: 'Promokod topilmadi.',
+    PROMO_EXPIRED: 'Promokod muddati tugagan.',
+    PROMO_USAGE_EXCEEDED: 'Promokod ishlatish limiti tugagan.',
+    PROMO_NOT_APPLICABLE: 'Promokod bu buyurtmaga mos emas.',
+    INSUFFICIENT_LOYALTY_BALANCE: 'Bonus balansi yetarli emas.',
+    MINIMUM_ORDER_NOT_MET: 'Minimal buyurtma summasiga yetmadi.',
+    PAYMENT_FAILED: 'To‘lov amalga oshmadi.',
+  },
+} as const;
+
+/**
+ * Widens the literal types produced by `as const` to `string`, while preserving the key
+ * structure. That way a translation file is type-checked for *missing or extra keys*
+ * without requiring every translation to equal the Uzbek text.
+ */
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+
+export type Dictionary = Widen<typeof uz>;
