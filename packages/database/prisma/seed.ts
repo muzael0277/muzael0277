@@ -12,7 +12,8 @@
 import { PrismaClient, type MemberRole, type Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { TEMPLATE_DEFINITIONS, withDependencies, type BusinessTemplateKey } from '@bizbot/rbac';
-import { formatOrderNumber, randomCode } from '@bizbot/shared';
+import { formatOrderNumber } from '@bizbot/shared';
+import { randomCode } from '@bizbot/shared/server';
 
 const prisma = new PrismaClient();
 

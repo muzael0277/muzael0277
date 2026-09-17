@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, type BookingStatus } from '@bizbot/database';
 import {
   DomainError, ErrorCode, localDateString, localWeekday, normalizePageParams,
-  paginate, toSkipTake, randomCode, type Weekday,
+  paginate, toSkipTake, type Weekday,
 } from '@bizbot/shared';
 import type { CreateBookingInput } from '@bizbot/contracts';
+import { randomCode } from '@bizbot/shared/server';
 import { PrismaService } from '../../infra/prisma.service';
 import { EventBus } from '../events/event-bus.service';
 import { DomainEventType } from '../events/event-types';

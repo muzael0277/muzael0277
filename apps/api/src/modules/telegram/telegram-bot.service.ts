@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramClient, TelegramApiError } from '@bizbot/telegram';
-import { DomainError, ErrorCode, randomSecret } from '@bizbot/shared';
+import { DomainError, ErrorCode } from '@bizbot/shared';
 import { loadEnv } from '@bizbot/config';
 import { maskSecret } from '@bizbot/database';
+import { randomSecret } from '@bizbot/shared/server';
 import { PrismaService } from '../../infra/prisma.service';
 import { VaultService } from '../../infra/vault.service';
 import { AuditService } from '../audit/audit.service';

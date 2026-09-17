@@ -1,0 +1,4 @@
+@import '@bizbot/ui/styles.css';
+
+:root { --surface-sunken: 255 255 255; }
+body { background-color: rgb(var(--surface)); }

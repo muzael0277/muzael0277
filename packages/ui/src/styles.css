@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design tokens.
+ *
+ * Every colour is an RGB triple so Tailwind's `<alpha-value>` works, and so a tenant's
+ * brand colour can be swapped at runtime without a rebuild.
+ */
+@layer base {
+  :root {
+    --brand: 99 102 241;
+    --brand-fg: 255 255 255;
+    --brand-subtle: 238 242 255;
+
+    --surface: 255 255 255;
+    --surface-raised: 255 255 255;
+    --surface-sunken: 249 250 251;
+
+    --content: 17 24 39;
+    --content-muted: 75 85 99;
+    --content-subtle: 156 163 175;
+
+    --line: 229 231 235;
+
+    --positive: 22 163 74;
+    --warning: 217 119 6;
+    --critical: 220 38 38;
+    --info: 37 99 235;
+
+    --font-sans: 'Inter', system-ui;
+  }
+
+  :root[data-theme='dark'] {
+    --brand-subtle: 30 27 75;
+    --surface: 17 24 39;
+    --surface-raised: 31 41 55;
+    --surface-sunken: 11 15 25;
+    --content: 243 244 246;
+    --content-muted: 156 163 175;
+    --content-subtle: 107 114 128;
+    --line: 55 65 81;
+  }
+
+  * { border-color: rgb(var(--line)); }
+
+  body {
+    background-color: rgb(var(--surface-sunken));
+    color: rgb(var(--content));
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Visible focus for keyboard users, invisible for mouse users. Removing outlines
+     outright is the single most common accessibility regression in dashboards. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--brand));
+    outline-offset: 2px;
+  }
+
+  /* Uzbek and Russian text share the Latin/Cyrillic ranges; tabular numerals keep
+     price columns aligned, which matters on a screen full of money. */
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-surface-sunken;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(90deg, transparent, rgb(0 0 0 / 0.04), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+}

@@ -1,0 +1,21 @@
+@import '@bizbot/ui/styles.css';
+
+/**
+ * Mini App surface.
+ *
+ * Telegram supplies theme variables; where present they are preferred, so the app matches
+ * whatever theme the user has chosen rather than fighting it.
+ */
+:root {
+  --surface: 255 255 255;
+  --surface-sunken: 247 247 249;
+}
+
+body {
+  /* Room for the bottom navigation plus the phone's home indicator. */
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  overscroll-behavior-y: none;
+}
+
+/* Touch targets stay at least 44px; anything smaller is a miss on a moving bus. */
+.tap { min-height: 44px; min-width: 44px; }
