@@ -68,17 +68,19 @@ the same DI container, same domain services, different entrypoint. See ADR-0001.
 ## 3. Non-negotiable invariants
 
 These are enforced in code and covered by tests. Breaking one is a P0.
+Test locations are given by file name; see [the testing guide](../guides/testing.md)
+for what each suite covers and how to run one on its own.
 
-| #   | Invariant                                           | Enforced by                                                              | Test                       |
-| --- | --------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------- |
-| I1  | Tenant A can never read/write Tenant B data         | Prisma tenant-guard extension + `TenantContext` + guards                 | `tenant-isolation.spec`    |
-| I2  | Money is never trusted from the client              | `PricingService` recomputes every total server-side                      | `checkout-pricing.spec`    |
-| I3  | A resource cannot be double-booked                  | `SELECT … FOR UPDATE` on the resource-day lock row inside the booking tx | `booking-collision.spec`   |
-| I4  | A payment webhook replay changes nothing            | `ProcessedWebhook` unique key + idempotent state machine                 | `payment-idempotency.spec` |
-| I5  | Loyalty balance always equals the sum of its ledger | Balance is only ever written with a `LoyaltyTransaction` in the same tx  | `loyalty-ledger.spec`      |
-| I6  | Orders keep a snapshot of what was sold             | `OrderItem` copies name/price/modifiers at creation                      | `order-snapshot.spec`      |
-| I7  | Secrets are never returned to any client            | `Integration.secretRef` → `SecretVault` (AES-256-GCM), never serialized  | `secret-exposure.spec`     |
-| I8  | Permission checks happen server-side                | `PermissionsGuard` on every non-public route                             | `rbac.spec`                |
+| #   | Invariant                                           | Enforced by                                                              | Test                                    |
+| --- | --------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| I1  | Tenant A can never read/write Tenant B data         | Prisma tenant-guard extension + `TenantContext` + guards                 | `invariants.spec` · `tenant-guard.spec` |
+| I2  | Money is never trusted from the client              | `PricingService` recomputes every total server-side                      | `invariants.spec` · `pricing.spec`      |
+| I3  | A resource cannot be double-booked                  | `SELECT … FOR UPDATE` on the resource-day lock row inside the booking tx | `invariants.spec` · `availability.spec` |
+| I4  | A payment webhook replay changes nothing            | `ProcessedWebhook` unique key + idempotent state machine                 | `invariants.spec` · `providers.spec`    |
+| I5  | Loyalty balance always equals the sum of its ledger | Balance is only ever written with a `LoyaltyTransaction` in the same tx  | `invariants.spec`                       |
+| I6  | Orders keep a snapshot of what was sold             | `OrderItem` copies name/price/modifiers at creation                      | `invariants.spec` + `db:check`          |
+| I7  | Secrets are never returned to any client            | `Integration.secretRef` → `SecretVault` (AES-256-GCM), never serialized  | `invariants.spec`                       |
+| I8  | Permission checks happen server-side                | `PermissionsGuard` on every non-public route                             | `rbac.spec` + boot-time route audit     |
 
 ## 4. Layering rules
 

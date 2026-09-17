@@ -65,8 +65,8 @@ adapters; their protocol quirks stay inside the adapter.
 
 Stored as `Integration.secretRef` → `SecretVault` (AES-256-GCM, key from
 `SECRETS_ENCRYPTION_KEY`, per-record IV, auth tag stored alongside). Decrypted only in the
-provider call path. Serializers strip anything secret-shaped; `secret-exposure.spec.ts`
-asserts no API response ever contains a stored secret.
+provider call path. Serializers strip anything secret-shaped, and the I7 tests assert
+that no API response ever contains a stored secret.
 
 ## 5. Money safety
 

@@ -187,6 +187,19 @@ export class PaymeProvider implements PaymentProvider {
     }
   }
 
+  notFoundResponse(request: WebhookRequest) {
+    const rpc = request.parsedBody as PaymeRpc;
+    // Payme's JSON-RPC carries the outcome in the body and expects HTTP 200 regardless;
+    // -31003 ends the retry cycle for a transaction we do not have.
+    return {
+      response: {
+        error: { code: PAYME_ERROR.TRANSACTION_NOT_FOUND, message: 'Transaction not found' },
+        id: rpc?.id ?? 0,
+      },
+      statusCode: 200,
+    };
+  }
+
   /** Our payment id travels in `account`, under the field configured in the cabinet. */
   private paymentIdFrom(params: Record<string, unknown>): string | undefined {
     const account = params.account as Record<string, string> | undefined;

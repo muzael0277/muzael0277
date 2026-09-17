@@ -181,6 +181,21 @@ export class ClickProvider implements PaymentProvider {
     };
   }
 
+  notFoundResponse(request: WebhookRequest) {
+    const body = request.parsedBody as ClickCallback;
+    // Click reads the outcome from `error`, not from the HTTP status, and retries
+    // anything it cannot parse. -6 tells it to stop: this transaction is not ours.
+    return {
+      response: {
+        click_trans_id: body?.click_trans_id,
+        merchant_trans_id: body?.merchant_trans_id,
+        error: CLICK_ERROR.TRANSACTION_NOT_FOUND,
+        error_note: 'Transaction not found',
+      },
+      statusCode: 200,
+    };
+  }
+
   private credential(ctx: ProviderContext, key: string): string {
     const value = ctx.credentials[key];
     if (!value) {

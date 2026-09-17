@@ -82,6 +82,18 @@ export interface RefundResult {
   externalRefundId?: string;
 }
 
+/**
+ * What to answer when a correctly signed callback names a payment we do not have.
+ *
+ * Every provider has a code for this in its own protocol, and answering with a generic
+ * error instead makes the provider retry a callback that can never succeed. The shape
+ * is the provider's, so the provider supplies it.
+ */
+export interface NotFoundResponse {
+  response: unknown;
+  statusCode?: number;
+}
+
 export class PaymentProviderError extends Error {
   constructor(
     readonly provider: PaymentProviderKey,
@@ -123,4 +135,13 @@ export interface PaymentProvider {
 
   /** Translates a verified webhook into a normalized intent. Performs no writes. */
   handleWebhook(ctx: ProviderContext, request: WebhookRequest): Promise<WebhookOutcome>;
+
+  /**
+   * The answer to a verified callback that names a payment we do not have.
+   *
+   * Optional: a provider without one gets a plain 404. Implement it for any provider
+   * that retries on an unrecognized response — otherwise a single stray callback is
+   * retried forever.
+   */
+  notFoundResponse?(request: WebhookRequest): NotFoundResponse;
 }

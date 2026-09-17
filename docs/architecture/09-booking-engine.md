@@ -67,7 +67,7 @@ failures, and it keeps two barbers independent. A `CHECK` + GiST exclusion const
 
 > 1 is enabled (capacity makes a plain exclusion constraint insufficient).
 
-`booking-collision.spec.ts` fires N concurrent requests at one slot and asserts exactly
+The I3 tests in `invariants.spec.ts` fire N concurrent requests at one slot and assert exactly
 one `201` and N−1 `409 BOOKING_SLOT_TAKEN`.
 
 ## 4. Lifecycle

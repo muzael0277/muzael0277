@@ -100,8 +100,8 @@ points at B's customer. Defences:
    (`OrderItem → Product`, `Booking → Resource`, `CartItem → Variant`) are declared with
    `(tenantId, id)` composite references so the database itself rejects a cross-tenant
    link.
-3. **Test coverage.** `tenant-isolation.spec.ts` asserts each of read / update / delete /
-   _relate_ across tenants fails.
+3. **Test coverage.** `tenant-guard.spec.ts` and the I1 tests in `invariants.spec.ts`
+   assert that each of read / update / delete / _relate_ across tenants fails.
 
 ## 4. Rules for contributors
 

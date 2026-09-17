@@ -194,6 +194,18 @@ export class PaymentsService {
         // Lost the race with a concurrent delivery of the same event; the other one wins.
         return { status: outcome.statusCode ?? 200, body: outcome.response };
       }
+      if (error instanceof DomainError && error.code === ErrorCode.PAYMENT_NOT_FOUND) {
+        // Deliberately not recorded as handled: nothing happened, and if the payment
+        // shows up later the provider's retry should be able to settle it.
+        logger.warn(
+          { provider: providerKey, integrationId, paymentId: outcome.paymentId },
+          'Payment webhook for an unknown payment',
+        );
+        const notFound = provider.notFoundResponse?.(request);
+        return notFound
+          ? { status: notFound.statusCode ?? 200, body: notFound.response }
+          : { status: 404, body: { error: 'Payment not found' } };
+      }
       throw error;
     }
 
@@ -261,7 +273,14 @@ export class PaymentsService {
   ): Promise<void> {
     {
       {
-        const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+        const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+        // A verified callback naming a payment that is not here is not an error in our
+        // processing — it is a callback for someone else, or for a payment already
+        // purged. Throwing a generic error made the controller answer 500, and a
+        // provider retries a 500 forever on a callback that can never succeed.
+        if (!payment) {
+          throw new DomainError(ErrorCode.PAYMENT_NOT_FOUND, 'No such payment', { paymentId });
+        }
 
         const nextState = this.stateFor(intent);
         if (nextState === null) return;

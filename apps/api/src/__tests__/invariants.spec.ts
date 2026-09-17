@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createHash } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import { tenantContext, type PrismaClient } from '@bizbot/database';
 import { AppModule } from '../app.module';
@@ -11,6 +12,8 @@ import { LoyaltyService } from '../modules/loyalty/loyalty.service';
 import { ServicesService } from '../modules/catalog/services.service';
 import { BranchesService } from '../modules/branches/branches.service';
 import { TenantsService } from '../modules/tenants/tenants.service';
+import { IntegrationsService } from '../modules/integrations/integrations.service';
+import { PaymentsService } from '../modules/payments/payments.service';
 
 /**
  * The system invariants, exercised through the real services against a real database.
@@ -32,6 +35,8 @@ let loyalty: LoyaltyService;
 let services: ServicesService;
 let branches: BranchesService;
 let tenants: TenantsService;
+let integrations: IntegrationsService;
+let payments: PaymentsService;
 
 const TENANT_A = 'aa000000-0000-4000-8000-0000000000aa';
 const TENANT_B = 'bb000000-0000-4000-8000-0000000000bb';
@@ -61,6 +66,8 @@ beforeAll(async () => {
   services = moduleRef.get(ServicesService);
   branches = moduleRef.get(BranchesService);
   tenants = moduleRef.get(TenantsService);
+  integrations = moduleRef.get(IntegrationsService);
+  payments = moduleRef.get(PaymentsService);
 
   // Tenants own audit rows, which are append-only, so removal goes through the
   // deliberate purge path rather than a bare deleteMany.
@@ -382,6 +389,177 @@ describe('I3 — a resource cannot be double-booked', () => {
   }, 20_000);
 });
 
+// ── I4 ────────────────────────────────────────────────────────────────────────
+
+describe('I4 — a payment webhook replay changes nothing', () => {
+  const CLICK_SECRET = 'click-secret-for-invariant-tests';
+  // Click transaction ids are globally unique in production, and the idempotency key
+  // is derived from them. Reusing a fixed id across runs against a persistent database
+  // would make the second run's callback look like a replay of the first run's.
+  const TX = String(Date.now()).slice(-9);
+  let integrationId: string;
+  let orderId: string;
+  let paymentId: string;
+  let orderTotal: number;
+
+  /** Signs a Click callback exactly as Click signs it. */
+  const sign = (body: Record<string, string>) => {
+    const parts = [
+      body.click_trans_id,
+      body.service_id,
+      CLICK_SECRET,
+      body.merchant_trans_id,
+      ...(body.action === '1' && body.merchant_prepare_id ? [body.merchant_prepare_id] : []),
+      body.amount,
+      body.action,
+      body.sign_time,
+    ];
+    return { ...body, sign_string: createHash('md5').update(parts.join('')).digest('hex') };
+  };
+
+  const deliver = (body: Record<string, string>) =>
+    payments.handleWebhook('click', integrationId, {
+      rawBody: Buffer.from(JSON.stringify(body)),
+      headers: {},
+      parsedBody: body,
+      query: {},
+    });
+
+  beforeAll(async () => {
+    await raw.processedWebhook.deleteMany({ where: { tenantId: TENANT_A } });
+
+    const connected = await asA(() =>
+      integrations.upsert(USER_A, {
+        type: 'PAYMENT',
+        provider: 'click',
+        secrets: {
+          serviceId: '12345',
+          merchantId: '54321',
+          secretKey: CLICK_SECRET,
+          merchantUserId: '1',
+        },
+        isEnabled: true,
+      }),
+    );
+    integrationId = connected.id;
+
+    const order = await asA(() =>
+      orders.createByStaff(USER_A, {
+        customerId: customerA,
+        fulfillmentType: 'PICKUP',
+        paymentMethod: 'CLICK',
+        items: [{ productId: productA, quantity: 2, modifierOptionIds: [] }],
+      }),
+    );
+    orderId = order.id;
+    orderTotal = order.total;
+
+    const payment = await asA(() => payments.createForOrder(orderId, 'CLICK'));
+    paymentId = payment.id;
+  });
+
+  const callback = (overrides: Record<string, string> = {}) =>
+    sign({
+      click_trans_id: `${TX}1`,
+      service_id: '12345',
+      merchant_trans_id: paymentId,
+      amount: String(orderTotal),
+      action: '1',
+      merchant_prepare_id: paymentId,
+      error: '0',
+      sign_time: '2026-09-17 10:00:00',
+      ...overrides,
+    });
+
+  it('rejects a forged callback before it touches anything', async () => {
+    const forged = { ...callback(), sign_string: 'f'.repeat(32) };
+    const response = await deliver(forged);
+
+    expect(response.status).toBe(401);
+    const payment = await raw.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    expect(payment.state).not.toBe('PAID');
+  });
+
+  it('ignores a Prepare — no money has moved yet', async () => {
+    await deliver(callback({ click_trans_id: `${TX}2`, action: '0' }));
+
+    const payment = await raw.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    expect(payment.state).not.toBe('PAID');
+  });
+
+  it('settles exactly once across four identical deliveries', async () => {
+    // Telegram-style retries, a provider replay, and a deliberate resend all look the
+    // same from here, and all must add up to one payment.
+    const responses = [];
+    for (let i = 0; i < 4; i++) responses.push(await deliver(callback()));
+
+    for (const response of responses) expect(response.status).toBe(200);
+
+    const payment = await raw.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    expect(payment.state).toBe('PAID');
+
+    const order = await raw.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.paymentStatus).toBe('PAID');
+
+    // One dedup row, one accrual, one paid payment on the order.
+    const handled = await raw.processedWebhook.count({
+      where: { tenantId: TENANT_A, source: 'click' },
+    });
+    expect(handled).toBe(2); // the prepare and the complete, each once
+
+    const paidPayments = await raw.payment.count({
+      where: { tenantId: TENANT_A, orderId, state: 'PAID' },
+    });
+    expect(paidPayments).toBe(1);
+
+    const accruals = await raw.loyaltyTransaction.count({ where: { orderId, type: 'EARN' } });
+    expect(accruals).toBeLessThanOrEqual(1);
+  }, 20_000);
+
+  it('does not credit a replay that claims a different amount', async () => {
+    const before = await raw.payment.findUniqueOrThrow({ where: { id: paymentId } });
+
+    // Re-signed for the new amount, so the signature is valid — only the money is wrong.
+    await deliver(callback({ click_trans_id: `${TX}3`, amount: String(orderTotal * 10) }));
+
+    const after = await raw.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    expect(after.amount).toBe(before.amount);
+    expect(after.amount).toBe(orderTotal);
+  });
+
+  it('rejects a callback whose payload was edited after signing', async () => {
+    // Rewriting merchant_trans_id to point at someone else\u2019s payment invalidates
+    // the signature, and the signature is checked before anything is looked up.
+    const tampered = { ...callback(), merchant_trans_id: 'another-tenants-payment' };
+    const response = await deliver(tampered);
+
+    expect(response.status).toBe(401);
+  });
+
+  it('creates nothing for a correctly signed callback naming an unknown payment', async () => {
+    // Correctly signed this time \u2014 the signature proves the sender, not the target.
+    const response = await deliver(
+      sign({
+        click_trans_id: `${TX}4`,
+        service_id: '12345',
+        merchant_trans_id: 'no-such-payment',
+        amount: String(orderTotal),
+        action: '1',
+        merchant_prepare_id: 'no-such-payment',
+        error: '0',
+        sign_time: '2026-09-17 10:00:00',
+      }),
+    );
+
+    expect([200, 404, 500]).toContain(response.status);
+
+    const stillOne = await raw.payment.count({ where: { tenantId: TENANT_A, orderId } });
+    expect(stillOne).toBe(1);
+    const stray = await raw.payment.count({ where: { id: 'no-such-payment' } });
+    expect(stray).toBe(0);
+  });
+});
+
 // ── I5 ────────────────────────────────────────────────────────────────────────
 
 describe('I5 — a loyalty balance always equals its ledger', () => {
@@ -431,6 +609,93 @@ describe('I5 — a loyalty balance always equals its ledger', () => {
     expect(after.balance).toBe(before.balance + 5_000);
     expect(after.balance).toBe(ledger._sum.amount);
   }, 20_000);
+});
+
+// ── I7 ────────────────────────────────────────────────────────────────────────
+
+describe('I7 — a stored credential never comes back out', () => {
+  // A plausible-looking Payme merchant key. If this string appears anywhere in a
+  // response, the vault has leaked and every tenant's payment credentials are exposed.
+  const MERCHANT_KEY = 'zR7qN4vK2mX9tB6wL1pH8sJ3dF5gC0aY';
+  const MERCHANT_ID = '64f0e1c2b3a4d5e6f7089a1b';
+
+  beforeAll(async () => {
+    await asA(() =>
+      integrations.upsert(USER_A, {
+        type: 'PAYMENT',
+        provider: 'payme',
+        secrets: { merchantId: MERCHANT_ID, key: MERCHANT_KEY },
+        isEnabled: true,
+      }),
+    );
+  });
+
+  it('reports which credentials are set, never their values', async () => {
+    const saved = await asA(() =>
+      integrations.upsert(USER_A, { type: 'PAYMENT', provider: 'payme', isEnabled: true }),
+    );
+
+    expect(saved.configuredCredentials).toEqual(expect.arrayContaining(['merchantId', 'key']));
+    expect(JSON.stringify(saved)).not.toContain(MERCHANT_KEY);
+  });
+
+  it('keeps the secret out of the integrations list the admin UI renders', async () => {
+    const listed = await asA(() => integrations.list());
+    const body = JSON.stringify(listed);
+
+    expect(body).not.toContain(MERCHANT_KEY);
+    expect(body).not.toContain(MERCHANT_ID);
+    // The row is still reported as connected — the point is confidentiality, not silence.
+    expect(listed.find((i) => i.provider === 'payme')?.connected).toBe(true);
+  });
+
+  it('stores it encrypted, so a database dump does not hand it over', async () => {
+    const row = await raw.integration.findFirstOrThrow({
+      where: { tenantId: TENANT_A, provider: 'payme' },
+    });
+
+    expect(row.secretCipher).toBeTruthy();
+    expect(row.secretCipher).not.toContain(MERCHANT_KEY);
+    expect(JSON.stringify(row)).not.toContain(MERCHANT_KEY);
+    // AES-256-GCM: without the iv and the auth tag the ciphertext is neither readable
+    // nor modifiable undetected.
+    expect(row.secretIv).toBeTruthy();
+    expect(row.secretTag).toBeTruthy();
+  });
+
+  it('merges an edit instead of wiping the credentials that were not retyped', async () => {
+    // An admin changing only the public config must not silently disconnect payments.
+    await asA(() =>
+      integrations.upsert(USER_A, {
+        type: 'PAYMENT',
+        provider: 'payme',
+        config: { label: 'Payme' },
+      }),
+    );
+
+    const listed = await asA(() => integrations.list());
+    const payme = listed.find((i) => i.provider === 'payme');
+    expect(payme?.configuredCredentials).toEqual(expect.arrayContaining(['merchantId', 'key']));
+    expect(JSON.stringify(listed)).not.toContain(MERCHANT_KEY);
+  });
+
+  it('refuses a half-configured provider rather than failing at the customer', async () => {
+    await expect(
+      asB(() =>
+        integrations.upsert(USER_A, {
+          type: 'PAYMENT',
+          provider: 'click',
+          secrets: { serviceId: '12345' },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('does not expose tenant A\u2019s integration to tenant B', async () => {
+    const listedForB = await asB(() => integrations.list());
+    expect(JSON.stringify(listedForB)).not.toContain(MERCHANT_KEY);
+    expect(listedForB.find((i) => i.provider === 'payme')?.connected).toBe(false);
+  });
 });
 
 /** A slot N days out at 12:00 UTC, comfortably inside the seeded working hours. */

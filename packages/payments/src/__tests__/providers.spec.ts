@@ -162,6 +162,17 @@ describe('Click', () => {
     expect(outcome.intent).toMatchObject({ kind: 'mark_cancelled' });
   });
 
+  it('tells Click to stop retrying a transaction we do not have', async () => {
+    // Click reads the outcome from `error`, not the HTTP status, and retries anything
+    // it cannot parse — forever, on a callback that can never succeed.
+    const notFound = click.notFoundResponse(request(clickCallback()));
+    expect(notFound.statusCode).toBe(200);
+    expect(notFound.response).toMatchObject({
+      error: CLICK_ERROR.TRANSACTION_NOT_FOUND,
+      merchant_trans_id: 'pay_0001',
+    });
+  });
+
   it('puts the amount in the checkout URL unchanged — UZS has no minor unit', async () => {
     const subject: PaymentSubject = {
       paymentId: 'pay_0001',
@@ -261,6 +272,15 @@ describe('Payme', () => {
     expect(outcome.response).toMatchObject({
       error: { code: PAYME_ERROR.METHOD_NOT_FOUND },
       id: 3,
+    });
+  });
+
+  it('tells Payme to stop retrying a transaction we do not have', async () => {
+    const notFound = payme.notFoundResponse(request({ method: 'PerformTransaction', id: 9 }));
+    expect(notFound.statusCode).toBe(200);
+    expect(notFound.response).toMatchObject({
+      error: { code: PAYME_ERROR.TRANSACTION_NOT_FOUND },
+      id: 9,
     });
   });
 

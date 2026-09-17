@@ -28,8 +28,8 @@ Nest bootstrap, structured logging with request ids, error filter and error code
 health/readiness, auth (register/login/refresh rotation/logout), tenants, onboarding,
 memberships, `TenantGuard` + `PermissionsGuard` + `ModuleGuard` + the boot-time route
 audit, audit log.
-_Exit:_ a user registers, creates a business, invites a member; `rbac.spec` and
-`tenant-isolation.spec` pass.
+_Exit:_ a user registers, creates a business, invites a member; `rbac.spec` and the I1
+tenant-isolation tests pass.
 
 ## Phase 4 — Business domains ✅
 
@@ -37,15 +37,16 @@ CRM (customers, tags, notes, timeline, segments), catalog (categories, products,
 variants, modifier groups), services, branches, employees, cart, checkout with
 server-side pricing, orders + status pipeline, booking engine, loyalty ledger, promo
 codes, inventory ledger, analytics.
-_Exit:_ the three acceptance tests in `docs/guides/testing.md` pass end-to-end.
+_Exit:_ the invariant suite passes end-to-end — see
+[the testing guide](../guides/testing.md).
 
 ## Phase 5 — Integrations ✅
 
 Domain-event outbox + dispatcher + worker, notification engine with templates, Telegram
 multi-bot gateway + Mini App auth + bot flows, payment adapters with idempotent webhooks,
 generic integration framework.
-_Exit:_ `payment-idempotency.spec` and `booking-collision.spec` pass; bot connects and
-serves a menu in polling mode without a public URL.
+_Exit:_ the I3 and I4 tests pass; the bot connects and serves a menu in polling mode
+without a public URL.
 
 ## Phase 6 — Surfaces ✅
 
@@ -54,13 +55,24 @@ bookings, analytics, settings, Telegram, integrations); Mini App (commerce + boo
 public website; super admin.
 _Exit:_ a business can be run end-to-end from the browser.
 
-## Phase 7 — Hardening (next)
+## Phase 7 — Delivery ✅
+
+Dockerfiles for the API, the worker and the three Next apps; `docker-compose.yml` with a
+data-only default and a `full` profile; GitHub Actions running formatting, typecheck,
+build, the full suite against real Postgres and Redis, a migration-drift check, the demo
+seed twice, and image builds; `.env.example` and `pnpm setup:env`;
+`pnpm db:check` for stored-data integrity; README, seven guides, and this set of
+architecture documents kept current.
+_Exit:_ a clean checkout reaches three browsable demo businesses in five commands, and
+CI is green.
+
+## Phase 8 — Hardening (next)
 
 PostgreSQL RLS, rate limiting everywhere, outbound webhooks, real-time order/booking
 updates, global search + command palette, dark mode, PWA manifest, S3 uploads with image
 pipeline, observability (OpenTelemetry, Sentry), load test of the booking hot path.
 
-## Phase 8 — Growth (after)
+## Phase 9 — Growth (after)
 
 Marketing/campaigns, referrals, segments UI, AI assistant over the existing tool-shaped
 services, automation builder, POS beta, tenant public API + webhooks, white label.
