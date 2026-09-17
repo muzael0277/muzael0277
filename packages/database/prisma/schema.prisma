@@ -1,0 +1,1754 @@
+// BizBot OS — data model
+//
+// Rules this schema follows (see docs/architecture/01-domain-model.md):
+//  1. Every business row carries tenantId. Models that deliberately do not are listed in
+//     NON_TENANT_MODELS in src/tenant-guard.ts and require a reviewer to extend.
+//  2. Composite indexes lead with tenantId, because every query is already scoped by it.
+//  3. Money is an integer in minor units (UZS exponent 0). Lifetime accumulators are
+//     BigInt — 2.1 billion so'm is only ~$170k and a real business passes it.
+//  4. Customer-facing text is a Json { uz, ru, en } map; admin-only text stays plain.
+//  5. Ledgers (loyalty, inventory) are append-only; cached balances are never written
+//     without a ledger row in the same transaction.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity — platform-level, NOT tenant-scoped
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PlatformRole {
+  NONE
+  SUPPORT
+  ADMIN
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  platformRole  PlatformRole @default(NONE)
+  isActive      Boolean      @default(true)
+  emailVerifiedAt DateTime?
+  lastLoginAt   DateTime?
+  failedLoginAttempts Int    @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  profile       Profile?
+  memberships   TenantMembership[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  sentInvites   MemberInvite[]     @relation("InviteSender")
+  assignedConversations Conversation[] @relation("ConversationAssignee")
+
+  @@index([platformRole])
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  firstName String
+  lastName  String?
+  phone     String?
+  avatarUrl String?
+  language  String   @default("uz")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Refresh tokens are stored hashed and rotated on every use. `familyId` groups a
+/// rotation chain: reuse of a consumed token revokes the whole family, which is how a
+/// stolen-token replay is detected (docs/architecture/10-security.md).
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  familyId   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  revokedAt  DateTime?
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([familyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model Tenant {
+  id              String       @id @default(uuid())
+  slug            String       @unique
+  name            String
+  templateKey     String
+  status          TenantStatus @default(ONBOARDING)
+  logoUrl         String?
+  primaryColor    String       @default("#6366F1")
+  timezone        String       @default("Asia/Tashkent")
+  currency        String       @default("UZS")
+  defaultLanguage String       @default("uz")
+  /// Demo tenants are excluded from platform analytics and billing.
+  isDemo          Boolean      @default(false)
+  onboardingStep  Int          @default(1)
+  onboardingCompletedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  settings        TenantSettings?
+  modules         TenantModule[]
+  memberships     TenantMembership[]
+  invites         MemberInvite[]
+  branches        Branch[]
+  employees       Employee[]
+  customers       Customer[]
+  categories      Category[]
+  products        Product[]
+  variants        ProductVariant[]
+  modifierGroups  ModifierGroup[]
+  modifierOptions ModifierOption[]
+  services        Service[]
+  resources       BookingResource[]
+  carts           Cart[]
+  orders          Order[]
+  bookings        Booking[]
+  payments        Payment[]
+  promoCodes      PromoCode[]
+  loyaltyAccounts LoyaltyAccount[]
+  inventoryTx     InventoryTransaction[]
+  conversations   Conversation[]
+  notifications   Notification[]
+  notificationTemplates NotificationTemplate[]
+  integrations    Integration[]
+  telegramBot     TelegramBot?
+  auditLogs       AuditLog[]
+  domainEvents    DomainEvent[]
+  customFields    CustomFieldDefinition[]
+  segments        CustomerSegment[]
+  tags            CustomerTag[]
+  subscription    Subscription?
+  featureFlags    TenantFeatureFlag[]
+  webhooks        Webhook[]
+  orderSequences  OrderSequence[]
+  resourceLocks   ResourceDayLock[]
+  usageCounters   UsageCounter[]
+
+  @@index([status])
+  @@index([templateKey])
+}
+
+model TenantSettings {
+  id               String   @id @default(uuid())
+  tenantId         String   @unique
+  phone            String?
+  email            String?
+  website          String?
+  instagram        String?
+  telegramChannel  String?
+  description      Json?
+  /// { "0": [{"start":"09:00","end":"22:00"}], ... } keyed by weekday, 0 = Sunday.
+  workingHours     Json     @default("{}")
+  deliverySettings Json     @default("{}")
+  bookingSettings  Json     @default("{}")
+  loyaltySettings  Json     @default("{}")
+  receiptSettings  Json     @default("{}")
+  taxSettings      Json     @default("{}")
+  customSettings   Json     @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TenantModule {
+  id        String   @id @default(uuid())
+  tenantId  String
+  module    String
+  enabled   Boolean  @default(true)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, module])
+  @@index([tenantId, enabled])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  OPERATOR
+  EMPLOYEE
+  ACCOUNTANT
+  COURIER
+  CUSTOM
+}
+
+model TenantMembership {
+  id                  String     @id @default(uuid())
+  tenantId            String
+  userId              String
+  role                MemberRole
+  /// { grant: [...], revoke: [...] } — the path to custom roles without a migration.
+  permissionOverrides Json?
+  employeeId          String?    @unique
+  isActive            Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  tenant              Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employee            Employee?  @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@index([tenantId, role])
+}
+
+model MemberInvite {
+  id         String     @id @default(uuid())
+  tenantId   String
+  email      String
+  role       MemberRole
+  tokenHash  String     @unique
+  invitedById String
+  employeeId String?
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime   @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy  User       @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@unique([tenantId, email, acceptedAt])
+  @@index([tenantId, expiresAt])
+}
+
+model Branch {
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  address      String?
+  phone        String?
+  latitude     Float?
+  longitude    Float?
+  workingHours Json     @default("{}")
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees    Employee[]
+  resources    BookingResource[]
+  orders       Order[]
+  bookings     Booking[]
+  inventoryTx  InventoryTransaction[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, isActive])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plans, entitlements, feature flags
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Plan {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  name          Json
+  description   Json?
+  monthlyPrice  Int      @default(0)
+  yearlyPrice   Int      @default(0)
+  currency      String   @default("UZS")
+  trialDays     Int      @default(14)
+  isPublic      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+}
+
+model PlanFeature {
+  id       String  @id @default(uuid())
+  planId   String
+  key      String
+  enabled  Boolean @default(true)
+  /// null means unlimited.
+  limit    Int?
+
+  plan     Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, key])
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  tenantId           String             @unique
+  planId             String
+  status             SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan               Plan               @relation(fields: [planId], references: [id])
+
+  @@index([status, currentPeriodEnd])
+}
+
+/// Usage counters for plan limits (orders/month, messages, AI credits).
+model UsageCounter {
+  id        String   @id @default(uuid())
+  tenantId  String
+  key       String
+  period    String
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key, period])
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  /// Global default when no per-tenant override exists.
+  enabled     Boolean  @default(false)
+  /// Percentage rollout 0..100, evaluated against a hash of the tenant id.
+  rolloutPercent Int   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  overrides   TenantFeatureFlag[]
+}
+
+model TenantFeatureFlag {
+  id        String      @id @default(uuid())
+  tenantId  String
+  flagId    String
+  enabled   Boolean
+  createdAt DateTime    @default(now())
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flag      FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, flagId])
+}
+
+/// Business templates live in the database so a new vertical is a row, not a deploy.
+model BusinessTemplate {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  name         Json
+  description  Json?
+  icon         String   @default("briefcase")
+  modules      Json
+  moduleConfig Json     @default("{}")
+  miniAppTabs  Json
+  orderPipeline Json
+  seedContent  Json     @default("{}")
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRM
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CustomerSource {
+  TELEGRAM
+  MANUAL
+  IMPORT
+  POS
+  WEB
+}
+
+model Customer {
+  id             String         @id @default(uuid())
+  tenantId       String
+  telegramUserId BigInt?
+  telegramUsername String?
+  firstName      String
+  lastName       String?
+  phone          String?
+  email          String?
+  language       String         @default("uz")
+  birthDate      DateTime?      @db.Date
+  source         CustomerSource @default(TELEGRAM)
+  /// Denormalized counters. Only ever written inside the transaction that changed the
+  /// underlying fact; loyaltyBalance is additionally reconcilable from its ledger.
+  totalSpent     BigInt         @default(0)
+  orderCount     Int            @default(0)
+  bookingCount   Int            @default(0)
+  loyaltyBalance Int            @default(0)
+  lastActivityAt DateTime       @default(now())
+  isBlocked      Boolean        @default(false)
+  /// True when Telegram reports the customer blocked the bot — stop wasting sends.
+  botBlocked     Boolean        @default(false)
+  customFields   Json           @default("{}")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  addresses      CustomerAddress[]
+  tagLinks       CustomerTagLink[]
+  notes          CustomerNote[]
+  timeline       CustomerTimelineEntry[]
+  carts          Cart[]
+  orders         Order[]
+  bookings       Booking[]
+  payments       Payment[]
+  loyaltyAccount LoyaltyAccount?
+  promoUsages    PromoUsage[]
+  conversations  Conversation[]
+  notifications  Notification[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, telegramUserId])
+  @@unique([tenantId, phone])
+  @@index([tenantId, lastActivityAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, totalSpent(sort: Desc)])
+  @@index([tenantId, firstName])
+}
+
+model CustomerAddress {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  label      String?
+  line1      String
+  landmark   String?
+  latitude   Float?
+  longitude  Float?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, customerId])
+}
+
+model CustomerTag {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  color     String   @default("#6366F1")
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  links     CustomerTagLink[]
+
+  @@unique([tenantId, name])
+}
+
+model CustomerTagLink {
+  customerId String
+  tagId      String
+  tenantId   String
+  createdAt  DateTime    @default(now())
+
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag        CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+  @@index([tenantId, tagId])
+}
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  authorId   String?
+  body       String
+  isPinned   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId, createdAt(sort: Desc)])
+}
+
+/// The unified customer activity feed. Appended by domain-event handlers, never written
+/// directly from a controller — that is what keeps it complete.
+model CustomerTimelineEntry {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  type       String
+  title      Json
+  body       Json?
+  metadata   Json     @default("{}")
+  amount     Int?
+  entityType String?
+  entityId   String?
+  occurredAt DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId, occurredAt(sort: Desc)])
+  @@index([tenantId, type, occurredAt(sort: Desc)])
+}
+
+/// Segments are stored filter trees, so "VIP" and "inactive 30 days" are rows a tenant
+/// can edit — not branches in application code.
+model CustomerSegment {
+  id          String   @id @default(uuid())
+  tenantId    String
+  key         String
+  name        Json
+  filter      Json
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Catalog
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(uuid())
+  tenantId  String
+  parentId  String?
+  name      Json
+  imageUrl  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryTree")
+  products  Product[]
+  services  Service[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, parentId, sortOrder])
+  @@index([tenantId, isActive])
+}
+
+model Product {
+  id                String   @id @default(uuid())
+  tenantId          String
+  categoryId        String?
+  name              Json
+  description       Json?
+  sku               String?
+  barcode           String?
+  price             Int
+  oldPrice          Int?
+  costPrice         Int?
+  images            String[] @default([])
+  isActive          Boolean  @default(true)
+  isFeatured        Boolean  @default(false)
+  trackInventory    Boolean  @default(false)
+  /// Cached projection of the inventory ledger for products without variants.
+  stockQuantity     Int      @default(0)
+  lowStockThreshold Int?
+  sortOrder         Int      @default(0)
+  customFields      Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  archivedAt        DateTime?
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variants          ProductVariant[]
+  modifierGroups    ProductModifierGroup[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  inventoryTx       InventoryTransaction[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, sku])
+  @@index([tenantId, categoryId, isActive, sortOrder])
+  @@index([tenantId, isActive, isFeatured])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid())
+  tenantId      String
+  productId     String
+  name          Json
+  sku           String?
+  /// Delta against the product price, so a base price change flows through.
+  priceModifier Int      @default(0)
+  stockQuantity Int      @default(0)
+  attributes    Json     @default("{}")
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  inventoryTx   InventoryTransaction[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, productId, sortOrder])
+}
+
+/// Modifier groups, not a flat modifier table: restaurants need "choose exactly 1 size"
+/// and "choose up to 3 toppings", which is minSelect/maxSelect on the group.
+model ModifierGroup {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      Json
+  minSelect Int      @default(0)
+  maxSelect Int      @default(1)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  options   ModifierOption[]
+  products  ProductModifierGroup[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, isActive])
+}
+
+model ModifierOption {
+  id        String   @id @default(uuid())
+  tenantId  String
+  groupId   String
+  name      Json
+  price     Int      @default(0)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group     ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  cartItemModifiers CartItemModifier[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, groupId, sortOrder])
+}
+
+model ProductModifierGroup {
+  productId String
+  groupId   String
+  tenantId  String
+  sortOrder Int    @default(0)
+
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group     ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([productId, groupId])
+  @@index([tenantId, groupId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Services, employees and bookable resources
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Service {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  categoryId           String?
+  name                 Json
+  description          Json?
+  price                Int
+  durationMinutes      Int
+  bufferBeforeMinutes  Int      @default(0)
+  bufferAfterMinutes   Int      @default(0)
+  imageUrl             String?
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  customFields         Json     @default("{}")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  archivedAt           DateTime?
+
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category             Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  employeeServices     EmployeeService[]
+  bookings             Booking[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, isActive, sortOrder])
+  @@index([tenantId, categoryId])
+}
+
+model Employee {
+  id        String   @id @default(uuid())
+  tenantId  String
+  branchId  String?
+  firstName String
+  lastName  String?
+  position  String?
+  phone     String?
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  membership TenantMembership?
+  services  EmployeeService[]
+  resource  BookingResource?
+
+  @@unique([tenantId, id])
+  @@index([tenantId, isActive])
+  @@index([tenantId, branchId])
+}
+
+model EmployeeService {
+  employeeId String
+  serviceId  String
+  tenantId   String
+  /// Optional per-employee override; falls back to the service price when null.
+  priceOverride Int?
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, serviceId])
+  @@index([tenantId, serviceId])
+}
+
+enum ResourceKind {
+  EMPLOYEE
+  ROOM
+  EQUIPMENT
+  TABLE
+  VEHICLE
+  GENERIC
+}
+
+/// The bookable unit. A barber, a dental chair, a car lift and a tennis court are the
+/// same thing to an availability algorithm (docs/adr/0007-resource-based-booking.md).
+model BookingResource {
+  id                  String       @id @default(uuid())
+  tenantId            String
+  branchId            String?
+  employeeId          String?      @unique
+  name                String
+  kind                ResourceKind @default(GENERIC)
+  /// > 1 enables group classes and shared tables. Gated off in the MVP UI.
+  capacity            Int          @default(1)
+  bufferBeforeMinutes Int          @default(0)
+  bufferAfterMinutes  Int          @default(0)
+  isActive            Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  tenant              Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch              Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  employee            Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  schedules           ResourceSchedule[]
+  timeOff             ResourceTimeOff[]
+  bookings            Booking[]
+  dayLocks            ResourceDayLock[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, isActive])
+  @@index([tenantId, branchId])
+}
+
+model ResourceSchedule {
+  id         String          @id @default(uuid())
+  tenantId   String
+  resourceId String
+  /// 0 = Sunday … 6 = Saturday. Multiple rows per weekday support split shifts.
+  weekday    Int
+  startTime  String
+  endTime    String
+
+  resource   BookingResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, resourceId, weekday])
+}
+
+model ResourceTimeOff {
+  id         String          @id @default(uuid())
+  tenantId   String
+  resourceId String
+  startsAt   DateTime
+  endsAt     DateTime
+  reason     String?
+  createdAt  DateTime        @default(now())
+
+  resource   BookingResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, resourceId, startsAt])
+}
+
+/// One row per resource per day, locked FOR UPDATE inside the booking transaction so
+/// concurrent requests for the same slot serialize (invariant I3). Narrow by design:
+/// two barbers, or the same barber on two days, never contend.
+model ResourceDayLock {
+  tenantId   String
+  resourceId String
+  day        DateTime        @db.Date
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resource   BookingResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, resourceId, day])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cart, orders and bookings
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  promoCode  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+
+  @@unique([tenantId, customerId])
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  tenantId   String
+  cartId     String
+  productId  String
+  variantId  String?
+  quantity   Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  /// Composite reference: the database itself refuses a cross-tenant link.
+  product    Product  @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Cascade)
+  variant    ProductVariant? @relation(fields: [tenantId, variantId], references: [tenantId, id], onDelete: Cascade)
+  modifiers  CartItemModifier[]
+
+  @@index([tenantId, cartId])
+}
+
+model CartItemModifier {
+  id         String   @id @default(uuid())
+  tenantId   String
+  cartItemId String
+  optionId   String
+
+  cartItem   CartItem       @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  option     ModifierOption @relation(fields: [tenantId, optionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([cartItemId, optionId])
+}
+
+enum OrderStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY
+  DELIVERING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
+  DINE_IN
+}
+
+enum PaymentMethod {
+  CASH
+  CLICK
+  PAYME
+  CARD_TERMINAL
+  TELEGRAM_STARS
+  MOCK
+}
+
+/// Per-tenant, per-day order number counter. A dedicated row keeps numbering gapless and
+/// scoped, so two tenants never collide and a customer can read the number aloud.
+model OrderSequence {
+  tenantId String
+  day      DateTime @db.Date
+  value    Int      @default(0)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, day])
+}
+
+model Order {
+  id              String          @id @default(uuid())
+  tenantId        String
+  orderNumber     String
+  customerId      String
+  branchId        String?
+  addressId       String?
+  status          OrderStatus     @default(NEW)
+  fulfillmentType FulfillmentType @default(DELIVERY)
+  paymentStatus   PaymentStatus   @default(UNPAID)
+  paymentMethod   PaymentMethod   @default(CASH)
+
+  /// Every amount is recomputed server-side at checkout; client-sent prices are ignored.
+  subtotal        Int
+  discountTotal   Int             @default(0)
+  promoDiscount   Int             @default(0)
+  loyaltyDiscount Int             @default(0)
+  deliveryFee     Int             @default(0)
+  taxTotal        Int             @default(0)
+  total           Int
+  currency        String          @default("UZS")
+
+  promoCodeId     String?
+  loyaltyEarned   Int             @default(0)
+  customerComment String?
+  internalComment String?
+  /// Snapshot of the delivery address text at order time.
+  addressSnapshot String?
+  phoneSnapshot   String?
+  scheduledFor    DateTime?
+  /// Optimistic-concurrency token for If-Match on status changes.
+  version         Int             @default(0)
+  source          String          @default("MINIAPP")
+  assignedOperatorId String?
+  acceptedAt      DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer        @relation(fields: [tenantId, customerId], references: [tenantId, id])
+  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  address         CustomerAddress? @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  promo           PromoCode?      @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  payments        Payment[]
+  promoUsages     PromoUsage[]
+  loyaltyTx       LoyaltyTransaction[]
+  inventoryTx     InventoryTransaction[]
+
+  @@unique([tenantId, orderNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([tenantId, customerId, createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, paymentStatus])
+  @@index([tenantId, branchId, status])
+}
+
+/// Order items are snapshots. A later price change or a deleted product must never
+/// rewrite history (invariant I6).
+model OrderItem {
+  id                String   @id @default(uuid())
+  tenantId          String
+  orderId           String
+  productId         String?
+  variantId         String?
+  nameSnapshot      Json
+  variantNameSnapshot Json?
+  skuSnapshot       String?
+  unitPrice         Int
+  /// Sum of the selected modifier prices, per unit.
+  modifiersPrice    Int      @default(0)
+  quantity          Int
+  discount          Int      @default(0)
+  total             Int
+  comment           String?
+
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  modifiers         OrderItemModifier[]
+
+  @@index([tenantId, orderId])
+  @@index([tenantId, productId])
+}
+
+model OrderItemModifier {
+  id           String    @id @default(uuid())
+  tenantId     String
+  orderItemId  String
+  optionId     String?
+  nameSnapshot Json
+  price        Int
+
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderItemId])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  tenantId    String
+  orderId     String
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String?
+  comment     String?
+  createdAt   DateTime    @default(now())
+
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderId, createdAt])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  tenantId        String
+  bookingNumber   String
+  customerId      String
+  serviceId       String
+  resourceId      String
+  branchId        String?
+  status          BookingStatus @default(PENDING)
+
+  /// The appointment as the customer sees it.
+  startsAt        DateTime
+  endsAt          DateTime
+  /// The appointment expanded by buffers — the range the overlap check uses, so the
+  /// query is one range comparison rather than arithmetic at read time.
+  blockStartsAt   DateTime
+  blockEndsAt     DateTime
+  durationMinutes Int
+
+  priceSnapshot   Int
+  serviceNameSnapshot Json
+  currency        String        @default("UZS")
+  paymentStatus   PaymentStatus @default(UNPAID)
+
+  customerComment String?
+  internalComment String?
+  customFields    Json          @default("{}")
+  version         Int           @default(0)
+  source          String        @default("MINIAPP")
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer      @relation(fields: [tenantId, customerId], references: [tenantId, id])
+  service         Service       @relation(fields: [tenantId, serviceId], references: [tenantId, id])
+  resource        BookingResource @relation(fields: [tenantId, resourceId], references: [tenantId, id])
+  branch          Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  statusHistory   BookingStatusHistory[]
+  payments        Payment[]
+  notifications   Notification[]
+
+  @@unique([tenantId, bookingNumber])
+  @@unique([tenantId, id])
+  /// The hot path: overlap checks for one resource around one instant.
+  @@index([tenantId, resourceId, blockStartsAt])
+  @@index([tenantId, startsAt])
+  @@index([tenantId, customerId, startsAt(sort: Desc)])
+  @@index([tenantId, status, startsAt])
+  @@index([tenantId, branchId, startsAt])
+}
+
+model BookingStatusHistory {
+  id          String        @id @default(uuid())
+  tenantId    String
+  bookingId   String
+  fromStatus  BookingStatus?
+  toStatus    BookingStatus
+  changedById String?
+  comment     String?
+  createdAt   DateTime      @default(now())
+
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, bookingId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payments
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PaymentState {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  tenantId      String
+  orderId       String?
+  bookingId     String?
+  customerId    String?
+  integrationId String?
+  provider      String
+  method        PaymentMethod
+  state         PaymentState  @default(PENDING)
+  amount        Int
+  refundedAmount Int          @default(0)
+  currency      String        @default("UZS")
+  /// The provider's own transaction id. Unique per provider so a replay maps to the
+  /// same payment row rather than creating a second one.
+  externalId    String?
+  checkoutUrl   String?
+  failureReason String?
+  metadata      Json          @default("{}")
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  booking       Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  integration   Integration?  @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  transactions  PaymentTransaction[]
+
+  @@unique([provider, externalId])
+  @@index([tenantId, state, createdAt(sort: Desc)])
+  @@index([tenantId, orderId])
+  @@index([tenantId, bookingId])
+}
+
+/// Append-only record of every provider interaction, including the raw payload, so a
+/// disputed payment can be reconstructed.
+model PaymentTransaction {
+  id          String   @id @default(uuid())
+  tenantId    String
+  paymentId   String
+  kind        String
+  amount      Int?
+  rawPayload  Json
+  createdAt   DateTime @default(now())
+
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, paymentId, createdAt])
+}
+
+/// Inbound webhook and Telegram update deduplication. The unique constraint is the
+/// idempotency mechanism: a duplicate insert fails, and that failure means "already
+/// handled" (invariant I4).
+model ProcessedWebhook {
+  id         String   @id @default(uuid())
+  source     String
+  key        String
+  tenantId   String?
+  /// The response returned the first time, replayed verbatim on a duplicate so the
+  /// provider sees a consistent answer.
+  response   Json?
+  createdAt  DateTime @default(now())
+
+  @@unique([source, key])
+  @@index([createdAt])
+}
+
+/// Client-supplied idempotency keys for order and booking creation.
+model IdempotencyKey {
+  id           String   @id @default(uuid())
+  tenantId     String
+  key          String
+  scope        String
+  requestHash  String
+  responseBody Json?
+  statusCode   Int?
+  lockedAt     DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, scope, key])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loyalty, promotions, inventory — all append-only ledgers
+// ─────────────────────────────────────────────────────────────────────────────
+
+model LoyaltyAccount {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String   @unique
+  /// Cached projection. Invariant I5: this always equals the sum of its ledger, because
+  /// it is never written without a LoyaltyTransaction in the same transaction.
+  balance    Int      @default(0)
+  lifetimeEarned BigInt @default(0)
+  lifetimeSpent  BigInt @default(0)
+  tier       String   @default("BRONZE")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([tenantId, balance(sort: Desc)])
+}
+
+enum LoyaltyTxType {
+  EARN
+  SPEND
+  ADJUSTMENT
+  EXPIRE
+  REFUND
+}
+
+model LoyaltyTransaction {
+  id          String        @id @default(uuid())
+  tenantId    String
+  accountId   String
+  orderId     String?
+  type        LoyaltyTxType
+  /// Signed: EARN and REFUND are positive, SPEND and EXPIRE negative.
+  amount      Int
+  /// Balance after applying this row — makes the ledger auditable without re-summing.
+  balanceAfter Int
+  reason      String?
+  actorUserId String?
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  account     LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  order       Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, accountId, createdAt(sort: Desc)])
+  @@index([tenantId, type, createdAt])
+  /// One accrual per order, enforced by the database — a webhook replay cannot
+  /// double-credit cashback (invariant I4).
+  @@unique([orderId, type])
+}
+
+enum PromoType {
+  PERCENTAGE
+  FIXED
+  BUY_X_GET_Y
+  FREE_DELIVERY
+}
+
+model PromoCode {
+  id               String    @id @default(uuid())
+  tenantId         String
+  code             String
+  type             PromoType @default(PERCENTAGE)
+  value            Int
+  minOrderTotal    Int       @default(0)
+  maxDiscount      Int?
+  usageLimit       Int?
+  usageCount       Int       @default(0)
+  perCustomerLimit Int?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean   @default(true)
+  /// Open-ended rules for future promo types (category scope, segment targeting,
+  /// buy-X-get-Y), validated per type on write.
+  rules            Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usages           PromoUsage[]
+  orders           Order[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive, endsAt])
+}
+
+model PromoUsage {
+  id          String   @id @default(uuid())
+  tenantId    String
+  promoCodeId String
+  customerId  String
+  orderId     String?
+  discount    Int
+  createdAt   DateTime @default(now())
+
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  /// One usage row per order, so a retry cannot consume the code twice.
+  @@unique([orderId, promoCodeId])
+  @@index([tenantId, promoCodeId, createdAt])
+  @@index([tenantId, customerId])
+}
+
+enum InventoryTxType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+}
+
+model InventoryTransaction {
+  id           String          @id @default(uuid())
+  tenantId     String
+  productId    String
+  variantId    String?
+  branchId     String?
+  orderId      String?
+  type         InventoryTxType
+  /// Signed: SALE and WRITE_OFF are negative, PURCHASE and RETURN positive.
+  quantity     Int
+  quantityAfter Int
+  unitCost     Int?
+  reason       String?
+  actorUserId  String?
+  createdAt    DateTime        @default(now())
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch       Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  order        Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, productId, createdAt(sort: Desc)])
+  @@index([tenantId, variantId, createdAt(sort: Desc)])
+  @@index([tenantId, type, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Telegram, messaging and notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum BotStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+model TelegramBot {
+  id             String    @id @default(uuid())
+  tenantId       String    @unique
+  /// Encrypted with AES-256-GCM via SecretVault. Never returned to any client.
+  botTokenCipher String
+  botTokenIv     String
+  botTokenTag    String
+  keyVersion     Int       @default(1)
+  /// Last 4 characters, for a masked display in the admin UI.
+  tokenHint      String
+  botId          BigInt    @unique
+  botUsername    String
+  botName        String?
+  /// Random path segment; guessing a tenant's webhook URL must be infeasible.
+  webhookSecret  String    @unique
+  /// Second factor: Telegram echoes this in X-Telegram-Bot-Api-Secret-Token.
+  headerSecret   String
+  status         BotStatus @default(PENDING)
+  lastError      String?
+  lastUpdateAt   DateTime?
+  webhookSetAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+}
+
+model Conversation {
+  id            String             @id @default(uuid())
+  tenantId      String
+  customerId    String
+  assignedToId  String?
+  status        ConversationStatus @default(OPEN)
+  subject       String?
+  lastMessageAt DateTime           @default(now())
+  lastMessagePreview String?
+  unreadCount   Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer      Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedTo    User?              @relation("ConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages      Message[]
+
+  @@unique([tenantId, customerId])
+  @@index([tenantId, status, lastMessageAt(sort: Desc)])
+  @@index([tenantId, assignedToId, status])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  tenantId       String
+  conversationId String
+  direction      MessageDirection
+  body           String?
+  attachments    Json             @default("[]")
+  /// Telegram's own message id, used to deduplicate and to reply in-thread.
+  externalId     String?
+  authorUserId   String?
+  isSystem       Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, conversationId, createdAt(sort: Desc)])
+}
+
+enum NotificationChannel {
+  TELEGRAM
+  SMS
+  EMAIL
+  PUSH
+}
+
+enum NotificationStatus {
+  SCHEDULED
+  QUEUED
+  SENT
+  FAILED
+  CANCELLED
+  SKIPPED
+}
+
+/// Tenant-customizable message bodies. Falls back to the platform default when a tenant
+/// has not authored its own.
+model NotificationTemplate {
+  id        String              @id @default(uuid())
+  tenantId  String
+  key       String
+  channel   NotificationChannel @default(TELEGRAM)
+  /// { uz, ru, en } with {{variable}} placeholders.
+  body      Json
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key, channel])
+}
+
+model Notification {
+  id           String              @id @default(uuid())
+  tenantId     String
+  customerId   String?
+  bookingId    String?
+  channel      NotificationChannel @default(TELEGRAM)
+  templateKey  String
+  payload      Json                @default("{}")
+  renderedBody String?
+  status       NotificationStatus  @default(SCHEDULED)
+  scheduledFor DateTime            @default(now())
+  sentAt       DateTime?
+  failureReason String?
+  attempts     Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer     Customer?           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  booking      Booking?            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  /// A duplicate reminder cannot be created even if a delayed job runs twice.
+  @@unique([bookingId, templateKey, scheduledFor])
+  @@index([tenantId, status, scheduledFor])
+  @@index([tenantId, customerId, createdAt(sort: Desc)])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Integrations, webhooks, custom fields, audit, events
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum IntegrationType {
+  PAYMENT
+  SMS
+  EMAIL
+  DELIVERY
+  ACCOUNTING
+  CRM
+  ANALYTICS
+  AI
+  POS
+  OTHER
+}
+
+enum IntegrationStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+}
+
+/// Generic third-party connection. Payments are the first consumer, not a special case
+/// (docs/adr/0004-provider-adapters.md).
+model Integration {
+  id           String            @id @default(uuid())
+  tenantId     String
+  type         IntegrationType
+  provider     String
+  status       IntegrationStatus @default(DISCONNECTED)
+  isEnabled    Boolean           @default(true)
+  /// Non-sensitive settings, safe to return to the admin UI.
+  config       Json              @default("{}")
+  /// Pointer into the encrypted secret store. The ciphertext never leaves the server.
+  secretCipher String?
+  secretIv     String?
+  secretTag    String?
+  keyVersion   Int               @default(1)
+  lastSyncAt   DateTime?
+  lastError    String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@unique([tenantId, type, provider])
+  @@index([tenantId, isEnabled])
+}
+
+model Webhook {
+  id          String   @id @default(uuid())
+  tenantId    String
+  url         String
+  events      String[]
+  secret      String
+  isActive    Boolean  @default(true)
+  failureCount Int     @default(0)
+  lastDeliveryAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries  WebhookDelivery[]
+
+  @@index([tenantId, isActive])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(uuid())
+  tenantId     String
+  webhookId    String
+  eventType    String
+  payload      Json
+  statusCode   Int?
+  responseBody String?
+  attempts     Int      @default(0)
+  succeededAt  DateTime?
+  nextRetryAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  webhook      Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, webhookId, createdAt(sort: Desc)])
+  @@index([nextRetryAt])
+}
+
+enum CustomFieldEntity {
+  CUSTOMER
+  PRODUCT
+  SERVICE
+  ORDER
+  BOOKING
+  EMPLOYEE
+}
+
+enum CustomFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  DATE
+  DATETIME
+  PHONE
+  EMAIL
+  FILE
+}
+
+/// Dynamic per-tenant fields. Values land in the entity's customFields JSONB, so a new
+/// business field never requires a migration.
+model CustomFieldDefinition {
+  id         String            @id @default(uuid())
+  tenantId   String
+  entity     CustomFieldEntity
+  key        String
+  label      Json
+  type       CustomFieldType
+  /// { options: [...], min, max, pattern } — validated by a zod schema built per type.
+  config     Json              @default("{}")
+  isRequired Boolean           @default(false)
+  /// Show this field in the Mini App booking/checkout form, not just in admin.
+  showInForm Boolean           @default(false)
+  sortOrder  Int               @default(0)
+  isActive   Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, entity, key])
+  @@index([tenantId, entity, sortOrder])
+}
+
+/// Append-only. The application role has no UPDATE or DELETE grant on this table.
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  actorUserId String?
+  actorType   String   @default("USER")
+  action      String
+  entityType  String?
+  entityId    String?
+  before      Json?
+  after       Json?
+  ip          String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, actorUserId, createdAt(sort: Desc)])
+  @@index([tenantId, entityType, entityId])
+  @@index([action, createdAt(sort: Desc)])
+}
+
+enum EventStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+/// Transactional outbox. Written in the same transaction as the business change, then
+/// drained by the dispatcher (docs/adr/0005-transactional-outbox.md). This is the hook
+/// that makes automations, webhooks and AI context additive rather than invasive.
+model DomainEvent {
+  id            String      @id @default(uuid())
+  tenantId      String
+  type          String
+  version       Int         @default(1)
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  actorUserId   String?
+  status        EventStatus @default(PENDING)
+  attempts      Int         @default(0)
+  availableAt   DateTime    @default(now())
+  processedAt   DateTime?
+  lastError     String?
+  occurredAt    DateTime    @default(now())
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  handlerRuns   EventHandlerRun[]
+
+  @@index([status, availableAt])
+  @@index([tenantId, type, occurredAt(sort: Desc)])
+  @@index([tenantId, aggregateType, aggregateId])
+}
+
+/// At-least-once delivery means handlers must be idempotent; this table is how they are.
+model EventHandlerRun {
+  id        String      @id @default(uuid())
+  eventId   String
+  handler   String
+  succeeded Boolean     @default(false)
+  error     String?
+  createdAt DateTime    @default(now())
+
+  event     DomainEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, handler])
+}
