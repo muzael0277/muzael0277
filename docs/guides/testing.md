@@ -108,9 +108,16 @@ database.
 
 ## Browser check
 
+Needs the API and the admin running (`pnpm dev`, or `pnpm --filter @bizbot/api start`
+and `pnpm --filter @bizbot/admin start`) against a seeded database:
+
 ```bash
 pnpm e2e:admin
 ```
+
+It finds a Chromium on the machine before falling back to Playwright's pinned build,
+because a CI image almost never ships the exact build Playwright wants and the error it
+raises for a version mismatch reads like a missing install.
 
 `tools/e2e-admin.mjs` drives the admin dashboard in a real Chromium: sign in as Anor
 Cafe, load products, orders and customers, toggle a module, confirm the navigation is

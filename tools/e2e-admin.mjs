@@ -8,9 +8,34 @@
  *   node tools/e2e-admin.mjs
  */
 import { chromium } from 'playwright';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const ADMIN = process.env.ADMIN_URL ?? 'http://localhost:3001';
-const EXECUTABLE = process.env.CHROMIUM_PATH ?? undefined;
+
+/**
+ * Playwright pins an exact Chromium build and refuses anything else. Environments that
+ * ship their own browser (CI images, this container) rarely match that pin, and the
+ * error — "executable doesn't exist" — reads like a missing install rather than a
+ * version mismatch. Prefer an explicit path, then whatever the machine actually has,
+ * then Playwright's own.
+ */
+function findChromium() {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH ?? '/opt/pw-browsers';
+  if (!existsSync(root)) return undefined;
+  const candidates = readdirSync(root)
+    .filter((name) => name.startsWith('chromium'))
+    .sort()
+    .reverse()
+    .flatMap((name) => [
+      join(root, name, 'chrome-linux', 'chrome'),
+      join(root, name, 'chrome-linux', 'headless_shell'),
+    ]);
+  return candidates.find((path) => existsSync(path));
+}
+
+const EXECUTABLE = findChromium();
 
 const browser = await chromium.launch(EXECUTABLE ? { executablePath: EXECUTABLE } : {});
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
@@ -19,13 +44,19 @@ const failures = [];
 page.on('pageerror', (error) => failures.push(String(error)));
 page.on('response', (response) => {
   // Pre-login probes legitimately 401; anything else is a real failure.
-  if (response.url().includes('/v1/') && response.status() >= 400 && !response.url().includes('/auth/')) {
+  if (
+    response.url().includes('/v1/') &&
+    response.status() >= 400 &&
+    !response.url().includes('/auth/')
+  ) {
     failures.push(`${response.status()} ${response.url()}`);
   }
 });
 
 const steps = [];
-const step = (name, detail) => { steps.push(`✓ ${name}${detail ? ` — ${detail}` : ''}`); };
+const step = (name, detail) => {
+  steps.push(`✓ ${name}${detail ? ` — ${detail}` : ''}`);
+};
 
 await page.goto(`${ADMIN}/auth/login`, { waitUntil: 'domcontentloaded' });
 await page.fill('input[type="email"]', process.env.DEMO_EMAIL ?? 'anor@bizbot.uz');
@@ -35,7 +66,9 @@ await page.waitForURL(`${ADMIN}/`);
 await page.waitForSelector("text=/so‘m|so'm/", { timeout: 20000 });
 step('signed in', (await page.locator('header p').first().textContent())?.trim());
 
-const nav = (await page.locator('aside nav a').allTextContents()).map((s) => s.replace(/[^\p{L}\s]/gu, '').trim());
+const nav = (await page.locator('aside nav a').allTextContents()).map((s) =>
+  s.replace(/[^\p{L}\s]/gu, '').trim(),
+);
 step('navigation derived from enabled modules', nav.join(', '));
 
 for (const [label, urlPart, readySelector] of [
@@ -50,7 +83,11 @@ for (const [label, urlPart, readySelector] of [
   step(`${label} loaded`, `${await page.locator('table tbody tr').count()} rows`);
 }
 
-await page.locator('table tbody tr').first().click().catch(() => undefined);
+await page
+  .locator('table tbody tr')
+  .first()
+  .click()
+  .catch(() => undefined);
 if (await page.locator('[role="dialog"]').count()) {
   await page.keyboard.press('Escape');
   step('dialog opens and closes with Escape');
