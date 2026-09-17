@@ -1,12 +1,20 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import {
-  createTenantSchema, updateTenantSchema, updateTenantSettingsSchema,
-  toggleModuleSchema, onboardingAnswersSchema, type CreateTenantInput,
+  createTenantSchema,
+  updateTenantSchema,
+  updateTenantSettingsSchema,
+  toggleModuleSchema,
+  onboardingAnswersSchema,
+  type CreateTenantInput,
 } from '@bizbot/contracts';
 import { recommendTemplate, TEMPLATE_DEFINITIONS, type ModuleKey } from '@bizbot/rbac';
 import { zodBody } from '../../common/pipes/zod-validation.pipe';
 import {
-  AuthenticatedRoute, CurrentActor, CurrentTenant, Public, RequirePermission,
+  AuthenticatedRoute,
+  CurrentActor,
+  CurrentTenant,
+  Public,
+  RequirePermission,
 } from '../../common/decorators';
 import type { RequestActor, RequestTenant } from '../../common/types';
 import { TenantsService } from './tenants.service';
@@ -20,8 +28,12 @@ export class TenantsController {
   @Get('templates')
   listTemplates() {
     return Object.values(TEMPLATE_DEFINITIONS).map((t) => ({
-      key: t.key, label: t.label, description: t.description, icon: t.icon,
-      examples: t.examples, modules: t.modules,
+      key: t.key,
+      label: t.label,
+      description: t.description,
+      icon: t.icon,
+      examples: t.examples,
+      modules: t.modules,
     }));
   }
 
@@ -31,7 +43,9 @@ export class TenantsController {
    */
   @AuthenticatedRoute()
   @Post('onboarding/recommend')
-  recommend(@Body(zodBody(onboardingAnswersSchema)) answers: Parameters<typeof recommendTemplate>[0]) {
+  recommend(
+    @Body(zodBody(onboardingAnswersSchema)) answers: Parameters<typeof recommendTemplate>[0],
+  ) {
     const result = recommendTemplate(answers);
     return {
       ...result,
@@ -41,7 +55,10 @@ export class TenantsController {
 
   @AuthenticatedRoute()
   @Post('tenants')
-  create(@CurrentActor() actor: RequestActor, @Body(zodBody(createTenantSchema)) dto: CreateTenantInput) {
+  create(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createTenantSchema)) dto: CreateTenantInput,
+  ) {
     return this.tenants.create(actor.userId!, dto);
   }
 

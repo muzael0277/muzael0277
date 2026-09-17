@@ -12,10 +12,7 @@ export class AnalyticsController {
 
   @Get('dashboard')
   @RequirePermission('analytics:read')
-  dashboard(
-    @Query(zodQuery(analyticsRangeSchema)) query: never,
-    @Lang() lang: 'uz' | 'ru' | 'en',
-  ) {
+  dashboard(@Query(zodQuery(analyticsRangeSchema)) query: never, @Lang() lang: 'uz' | 'ru' | 'en') {
     return this.analytics.dashboard(query, lang);
   }
 

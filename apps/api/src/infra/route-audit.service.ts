@@ -1,7 +1,13 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 import { PATH_METADATA } from '@nestjs/common/constants';
-import { CUSTOMER_KEY, PERMISSION_KEY, PLATFORM_KEY, PUBLIC_KEY, SELF_KEY } from '../common/decorators';
+import {
+  CUSTOMER_KEY,
+  PERMISSION_KEY,
+  PLATFORM_KEY,
+  PUBLIC_KEY,
+  SELF_KEY,
+} from '../common/decorators';
 import { logger } from '../common/logger';
 
 /**

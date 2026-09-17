@@ -53,7 +53,13 @@ export interface TgUpdate {
     from: TgUser;
     new_chat_member: { status: string; user: TgUser };
   };
-  pre_checkout_query?: { id: string; from: TgUser; currency: string; total_amount: number; invoice_payload: string };
+  pre_checkout_query?: {
+    id: string;
+    from: TgUser;
+    currency: string;
+    total_amount: number;
+    invoice_payload: string;
+  };
 }
 
 export interface TgInlineKeyboardButton {
@@ -72,7 +78,12 @@ export interface TgKeyboardButton {
 
 export type TgReplyMarkup =
   | { inline_keyboard: TgInlineKeyboardButton[][] }
-  | { keyboard: TgKeyboardButton[][]; resize_keyboard?: boolean; one_time_keyboard?: boolean; is_persistent?: boolean }
+  | {
+      keyboard: TgKeyboardButton[][];
+      resize_keyboard?: boolean;
+      one_time_keyboard?: boolean;
+      is_persistent?: boolean;
+    }
   | { remove_keyboard: true };
 
 export interface TgSendMessageOptions {

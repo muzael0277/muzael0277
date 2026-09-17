@@ -1,7 +1,13 @@
 import { timingSafeEqual } from 'node:crypto';
 import type {
-  CreatePaymentResult, PaymentProvider, PaymentStatusResult, ProviderContext,
-  PaymentSubject, RefundResult, WebhookOutcome, WebhookRequest,
+  CreatePaymentResult,
+  PaymentProvider,
+  PaymentStatusResult,
+  ProviderContext,
+  PaymentSubject,
+  RefundResult,
+  WebhookOutcome,
+  WebhookRequest,
 } from '../provider';
 import { PaymentProviderError } from '../provider';
 
@@ -68,7 +74,11 @@ export class PaymeProvider implements PaymentProvider {
 
   async cancelPayment(): Promise<void> {}
 
-  async refundPayment(_ctx: ProviderContext, _s: PaymentSubject, amount: number): Promise<RefundResult> {
+  async refundPayment(
+    _ctx: ProviderContext,
+    _s: PaymentSubject,
+    amount: number,
+  ): Promise<RefundResult> {
     // Payme cancels a performed transaction rather than issuing a separate refund; the
     // cancel arrives as a CancelTransaction webhook, which is where the ledger updates.
     return { refundedAmount: amount };
@@ -169,7 +179,10 @@ export class PaymeProvider implements PaymentProvider {
         return {
           idempotencyKey: `payme:unknown:${Date.now()}`,
           intent: { kind: 'noop', reason: `Unknown Payme method ${rpc?.method}` },
-          response: { error: { code: PAYME_ERROR.METHOD_NOT_FOUND, message: 'Method not found' }, id },
+          response: {
+            error: { code: PAYME_ERROR.METHOD_NOT_FOUND, message: 'Method not found' },
+            id,
+          },
         };
     }
   }
@@ -183,7 +196,11 @@ export class PaymeProvider implements PaymentProvider {
   private credential(ctx: ProviderContext, key: string): string {
     const value = ctx.credentials[key];
     if (!value) {
-      throw new PaymentProviderError('payme', 'MISSING_CREDENTIAL', `Payme integration is missing "${key}"`);
+      throw new PaymentProviderError(
+        'payme',
+        'MISSING_CREDENTIAL',
+        `Payme integration is missing "${key}"`,
+      );
     }
     return value;
   }

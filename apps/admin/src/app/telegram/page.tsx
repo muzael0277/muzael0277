@@ -41,7 +41,9 @@ export default function TelegramPage() {
     setConnecting(true);
     try {
       await api(`/t/${tenant!.id}/telegram/connect`, {
-        method: 'POST', body: { botToken: token.trim() }, tenantId: tenant!.id,
+        method: 'POST',
+        body: { botToken: token.trim() },
+        tenantId: tenant!.id,
       });
       toast.success('Bot ulandi');
       setToken('');
@@ -79,7 +81,15 @@ export default function TelegramPage() {
             <CardHeader
               title="Ulangan bot"
               action={
-                <Badge tone={data.status === 'ACTIVE' ? 'positive' : data.status === 'ERROR' ? 'critical' : 'warning'}>
+                <Badge
+                  tone={
+                    data.status === 'ACTIVE'
+                      ? 'positive'
+                      : data.status === 'ERROR'
+                        ? 'critical'
+                        : 'warning'
+                  }
+                >
                   {data.status}
                 </Badge>
               }
@@ -93,7 +103,10 @@ export default function TelegramPage() {
                 ['Rejim', data.mode ?? '—'],
                 ['Oxirgi xabar', data.lastUpdateAt ? dateTime(data.lastUpdateAt) : 'Hali yo‘q'],
               ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <div
+                  key={label}
+                  className="flex items-center justify-between gap-3 px-5 py-3 text-sm"
+                >
                   <dt className="text-content-muted">{label}</dt>
                   <dd className="truncate font-mono text-xs">{value}</dd>
                 </div>
@@ -122,8 +135,8 @@ export default function TelegramPage() {
                 {data.miniAppUrl}
               </code>
               <p className="mt-3 text-sm text-content-muted">
-                Bu havola botning menyu tugmasiga avtomatik ulandi. Mijoz botni ochib
-                “Ilovani ochish” tugmasini bosadi.
+                Bu havola botning menyu tugmasiga avtomatik ulandi. Mijoz botni ochib “Ilovani
+                ochish” tugmasini bosadi.
               </p>
             </div>
           </Card>
@@ -133,8 +146,12 @@ export default function TelegramPage() {
           <CardHeader title="Botni ulash" description="BotFather’dan olingan tokenni kiriting" />
           <div className="space-y-4 p-5">
             <ol className="space-y-2 text-sm text-content-muted">
-              <li>1. Telegram’da <span className="font-mono text-content">@BotFather</span> ni oching</li>
-              <li>2. <span className="font-mono text-content">/newbot</span> buyrug‘ini yuboring</li>
+              <li>
+                1. Telegram’da <span className="font-mono text-content">@BotFather</span> ni oching
+              </li>
+              <li>
+                2. <span className="font-mono text-content">/newbot</span> buyrug‘ini yuboring
+              </li>
               <li>3. Bot nomi va username’ni tanlang</li>
               <li>4. Olingan tokenni quyiga joylashtiring</li>
             </ol>
@@ -150,7 +167,11 @@ export default function TelegramPage() {
               />
             </Field>
 
-            <Button onClick={connect} loading={connecting} disabled={!token.trim() || !can('integration:write')}>
+            <Button
+              onClick={connect}
+              loading={connecting}
+              disabled={!token.trim() || !can('integration:write')}
+            >
               Ulash
             </Button>
 

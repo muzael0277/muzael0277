@@ -17,11 +17,11 @@ User ──1:1── Profile
                               └──< Integration
 ```
 
-* `User` is a **platform** identity (email + password). It is not tenant-scoped — one
+- `User` is a **platform** identity (email + password). It is not tenant-scoped — one
   person can own a cafe and manage a friend's salon with one login.
-* `TenantMembership` carries the `role`. Authorization is always
+- `TenantMembership` carries the `role`. Authorization is always
   `(userId, tenantId) → role → permissions`, never `user.role`.
-* `User.platformRole` (`NONE | SUPPORT | ADMIN`) is a separate axis for super admin.
+- `User.platformRole` (`NONE | SUPPORT | ADMIN`) is a separate axis for super admin.
   A platform admin is not automatically a member of any tenant; cross-tenant reads go
   through an explicitly audited system context.
 
@@ -66,7 +66,7 @@ for AI context.
 
 **Segments** are stored as a `CustomerSegment` row holding a JSON filter tree
 (`{all:[{field,op,value}]}`) compiled to SQL by `SegmentCompiler`. "New customers",
-"VIP", "inactive 30 days" are *seeded rows*, not `if` branches — so tenants can create
+"VIP", "inactive 30 days" are _seeded rows_, not `if` branches — so tenants can create
 their own later without a deploy.
 
 ## 3. Catalog & services
@@ -120,33 +120,33 @@ BookingResource ──> Employee? / Branch
 
 Booking is modelled around **`BookingResource`**, not `Employee`. A barber, a dental
 chair, a meeting room and a car lift are all resources with a schedule. `Employee` is
-one *kind* of resource, joined 1:1 when `kind = EMPLOYEE`. This is what makes the same
+one _kind_ of resource, joined 1:1 when `kind = EMPLOYEE`. This is what makes the same
 engine work for salons, clinics, car services and courts. See `09-booking-engine.md`.
 
 ## 6. Operations
 
-* `InventoryTransaction` — append-only ledger (`PURCHASE | SALE | RETURN | ADJUSTMENT |
-  WRITE_OFF | TRANSFER`). `ProductVariant.stockQuantity` is a cached projection;
+- `InventoryTransaction` — append-only ledger (`PURCHASE | SALE | RETURN | ADJUSTMENT |
+WRITE_OFF | TRANSFER`). `ProductVariant.stockQuantity` is a cached projection;
   it is never written without a ledger row in the same transaction.
-* `LoyaltyTransaction` — same pattern (`EARN | SPEND | ADJUSTMENT | EXPIRE | REFUND`).
-* `PromoCode` + `PromoUsage` — `PromoCode.rules` is JSON so `BUY_X_GET_Y`, category
+- `LoyaltyTransaction` — same pattern (`EARN | SPEND | ADJUSTMENT | EXPIRE | REFUND`).
+- `PromoCode` + `PromoUsage` — `PromoCode.rules` is JSON so `BUY_X_GET_Y`, category
   scoping and segment targeting are added without a migration; MVP implements
   `PERCENTAGE` and `FIXED` with `minOrderTotal` / `maxDiscount` / usage caps.
 
 ## 7. Platform plumbing
 
-| Entity | Purpose |
-|---|---|
-| `DomainEvent` | Transactional outbox. Written in the same tx as the business change. |
-| `ProcessedWebhook` | Idempotency keys for inbound webhooks and Telegram updates. |
-| `IdempotencyKey` | Client-supplied keys for `POST /orders`, `POST /bookings`. |
-| `Integration` | Generic third-party connection; `config` public, `secretRef` → vault. |
-| `Webhook` / `WebhookDelivery` | Outbound tenant webhooks, signed + retried. |
-| `NotificationTemplate` / `Notification` | Channel-agnostic messaging with variables. |
-| `CustomFieldDefinition` | Per-tenant, per-entity dynamic fields → entity `customFields` JSONB. |
-| `AuditLog` | Append-only record of sensitive actions. |
-| `FeatureFlag` / `TenantFeatureFlag` | Global / per-plan / per-tenant rollout. |
-| `Automation` (Phase 4) | trigger → conditions → actions, driven by `DomainEvent`. |
+| Entity                                  | Purpose                                                               |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| `DomainEvent`                           | Transactional outbox. Written in the same tx as the business change.  |
+| `ProcessedWebhook`                      | Idempotency keys for inbound webhooks and Telegram updates.           |
+| `IdempotencyKey`                        | Client-supplied keys for `POST /orders`, `POST /bookings`.            |
+| `Integration`                           | Generic third-party connection; `config` public, `secretRef` → vault. |
+| `Webhook` / `WebhookDelivery`           | Outbound tenant webhooks, signed + retried.                           |
+| `NotificationTemplate` / `Notification` | Channel-agnostic messaging with variables.                            |
+| `CustomFieldDefinition`                 | Per-tenant, per-entity dynamic fields → entity `customFields` JSONB.  |
+| `AuditLog`                              | Append-only record of sensitive actions.                              |
+| `FeatureFlag` / `TenantFeatureFlag`     | Global / per-plan / per-tenant rollout.                               |
+| `Automation` (Phase 4)                  | trigger → conditions → actions, driven by `DomainEvent`.              |
 
 ## 8. Indexing strategy
 

@@ -1,7 +1,13 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  createCategorySchema, createProductSchema, updateProductSchema, listProductsSchema,
-  createVariantSchema, createModifierGroupSchema, createServiceSchema, updateServiceSchema,
+  createCategorySchema,
+  createProductSchema,
+  updateProductSchema,
+  listProductsSchema,
+  createVariantSchema,
+  createModifierGroupSchema,
+  createServiceSchema,
+  updateServiceSchema,
 } from '@bizbot/contracts';
 import { zodBody, zodQuery } from '../../common/pipes/zod-validation.pipe';
 import { CurrentActor, Lang, RequireModule, RequirePermission } from '../../common/decorators';
@@ -21,13 +27,20 @@ export class CatalogController {
 
   @Post('categories')
   @RequirePermission('product:write')
-  createCategory(@CurrentActor() actor: RequestActor, @Body(zodBody(createCategorySchema)) dto: Record<string, unknown>) {
+  createCategory(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createCategorySchema)) dto: Record<string, unknown>,
+  ) {
     return this.catalog.createCategory(actor.userId!, dto);
   }
 
   @Patch('categories/:id')
   @RequirePermission('product:write')
-  updateCategory(@CurrentActor() actor: RequestActor, @Param('id') id: string, @Body() dto: Record<string, unknown>) {
+  updateCategory(
+    @CurrentActor() actor: RequestActor,
+    @Param('id') id: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
     return this.catalog.updateCategory(actor.userId!, id, dto);
   }
 
@@ -55,7 +68,10 @@ export class CatalogController {
   @Post('products')
   @RequireModule('CATALOG')
   @RequirePermission('product:write')
-  createProduct(@CurrentActor() actor: RequestActor, @Body(zodBody(createProductSchema)) dto: Record<string, unknown>) {
+  createProduct(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createProductSchema)) dto: Record<string, unknown>,
+  ) {
     return this.catalog.createProduct(actor.userId!, dto);
   }
 
@@ -81,7 +97,10 @@ export class CatalogController {
   @Post('products/:id/variants')
   @RequireModule('CATALOG')
   @RequirePermission('product:write')
-  createVariant(@Param('id') productId: string, @Body(zodBody(createVariantSchema)) dto: Record<string, unknown>) {
+  createVariant(
+    @Param('id') productId: string,
+    @Body(zodBody(createVariantSchema)) dto: Record<string, unknown>,
+  ) {
     return this.catalog.createVariant(productId, dto);
   }
 
@@ -151,7 +170,10 @@ export class ServicesController {
   @Post()
   @RequireModule('SERVICES')
   @RequirePermission('service:write')
-  create(@CurrentActor() actor: RequestActor, @Body(zodBody(createServiceSchema)) dto: Record<string, unknown>) {
+  create(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createServiceSchema)) dto: Record<string, unknown>,
+  ) {
     return this.services.create(actor.userId!, dto);
   }
 

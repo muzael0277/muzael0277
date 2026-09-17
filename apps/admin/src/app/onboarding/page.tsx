@@ -40,14 +40,19 @@ export default function OnboardingPage() {
     hasEmployeeSchedules: false,
     tracksStock: false,
   });
-  const [recommendation, setRecommendation] = React.useState<{ template: Template; modules: ModuleKey[] } | null>(null);
+  const [recommendation, setRecommendation] = React.useState<{
+    template: Template;
+    modules: ModuleKey[];
+  } | null>(null);
   const [name, setName] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    api<Template[]>('/templates').then(setTemplates).catch(() => undefined);
+    api<Template[]>('/templates')
+      .then(setTemplates)
+      .catch(() => undefined);
   }, []);
 
   const questions: { key: keyof typeof answers; uz: string; ru: string }[] = [
@@ -55,15 +60,23 @@ export default function OnboardingPage() {
     { key: 'takesBookings', uz: 'Mijozlar navbatga yoziladimi?', ru: 'Клиенты записываются?' },
     { key: 'servesFood', uz: 'Taom tayyorlaysizmi?', ru: 'Готовите еду?' },
     { key: 'delivers', uz: 'Yetkazib berasizmi?', ru: 'Доставляете?' },
-    { key: 'hasEmployeeSchedules', uz: 'Xodimlaringiz jadval bo‘yicha ishlaydimi?', ru: 'Сотрудники работают по графику?' },
+    {
+      key: 'hasEmployeeSchedules',
+      uz: 'Xodimlaringiz jadval bo‘yicha ishlaydimi?',
+      ru: 'Сотрудники работают по графику?',
+    },
     { key: 'tracksStock', uz: 'Ombor qoldig‘ini hisoblaysizmi?', ru: 'Ведёте учёт склада?' },
   ];
 
   async function recommend() {
     try {
-      const result = await api<{ template: Template; modules: ModuleKey[] }>('/onboarding/recommend', {
-        method: 'POST', body: answers,
-      });
+      const result = await api<{ template: Template; modules: ModuleKey[] }>(
+        '/onboarding/recommend',
+        {
+          method: 'POST',
+          body: answers,
+        },
+      );
       setRecommendation(result);
       setStep(2);
     } catch {
@@ -118,8 +131,20 @@ export default function OnboardingPage() {
         <div className="mb-6 flex gap-2">
           {steps.map((label, index) => (
             <div key={label} className="flex-1">
-              <div className={cn('h-1 rounded-full transition', index <= step ? 'bg-brand' : 'bg-line')} />
-              <p className={cn('mt-1.5 text-xs', index <= step ? 'text-brand' : 'text-content-subtle')}>{label}</p>
+              <div
+                className={cn(
+                  'h-1 rounded-full transition',
+                  index <= step ? 'bg-brand' : 'bg-line',
+                )}
+              />
+              <p
+                className={cn(
+                  'mt-1.5 text-xs',
+                  index <= step ? 'text-brand' : 'text-content-subtle',
+                )}
+              >
+                {label}
+              </p>
             </div>
           ))}
         </div>
@@ -127,7 +152,9 @@ export default function OnboardingPage() {
         {step === 0 && (
           <Card className="p-6">
             <h2 className="font-medium">Qanday biznes yuritasiz?</h2>
-            <p className="mt-1 text-sm text-content-muted">Aniq bo‘lmasa, savollar orqali topamiz.</p>
+            <p className="mt-1 text-sm text-content-muted">
+              Aniq bo‘lmasa, savollar orqali topamiz.
+            </p>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {templates.map((template) => (
@@ -149,12 +176,16 @@ export default function OnboardingPage() {
                   }}
                   className="rounded-lg border border-line bg-surface-raised p-4 text-left transition hover:border-brand hover:shadow-card"
                 >
-                  <p className="font-medium">{language === 'ru' ? template.label.ru : template.label.uz}</p>
+                  <p className="font-medium">
+                    {language === 'ru' ? template.label.ru : template.label.uz}
+                  </p>
                   <p className="mt-1 text-sm text-content-muted">
                     {language === 'ru' ? template.description.ru : template.description.uz}
                   </p>
                   <p className="mt-2 text-xs text-content-subtle">
-                    {(language === 'ru' ? template.examples.ru : template.examples.uz).slice(0, 3).join(' · ')}
+                    {(language === 'ru' ? template.examples.ru : template.examples.uz)
+                      .slice(0, 3)
+                      .join(' · ')}
                   </p>
                 </button>
               ))}
@@ -177,7 +208,10 @@ export default function OnboardingPage() {
                     type="checkbox"
                     checked={Boolean(answers[question.key])}
                     onChange={(event) =>
-                      setAnswers((current) => ({ ...current, [question.key]: event.target.checked }))
+                      setAnswers((current) => ({
+                        ...current,
+                        [question.key]: event.target.checked,
+                      }))
                     }
                     className="h-5 w-5 rounded border-line text-brand focus:ring-brand/30"
                   />
@@ -192,7 +226,10 @@ export default function OnboardingPage() {
                   max={500}
                   value={answers.branchCount}
                   onChange={(event) =>
-                    setAnswers((current) => ({ ...current, branchCount: Math.max(1, Number(event.target.value)) }))
+                    setAnswers((current) => ({
+                      ...current,
+                      branchCount: Math.max(1, Number(event.target.value)),
+                    }))
                   }
                   className="w-20 text-center"
                 />
@@ -200,8 +237,12 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-5 flex gap-2">
-              <Button variant="secondary" onClick={() => setStep(0)}>Orqaga</Button>
-              <Button onClick={recommend} fullWidth>Davom etish</Button>
+              <Button variant="secondary" onClick={() => setStep(0)}>
+                Orqaga
+              </Button>
+              <Button onClick={recommend} fullWidth>
+                Davom etish
+              </Button>
             </div>
           </Card>
         )}
@@ -209,7 +250,9 @@ export default function OnboardingPage() {
         {step === 2 && recommendation && (
           <Card className="p-6">
             <h2 className="font-medium">
-              {language === 'ru' ? recommendation.template.label.ru : recommendation.template.label.uz}
+              {language === 'ru'
+                ? recommendation.template.label.ru
+                : recommendation.template.label.uz}
             </h2>
             <p className="mt-1 text-sm text-content-muted">
               Javoblaringiz asosida quyidagi imkoniyatlar yoqiladi:
@@ -220,7 +263,10 @@ export default function OnboardingPage() {
                 const definition = MODULE_DEFINITIONS[module];
                 if (!definition) return null;
                 return (
-                  <span key={module} className="rounded-md bg-brand-subtle px-2 py-1 text-xs font-medium text-brand">
+                  <span
+                    key={module}
+                    className="rounded-md bg-brand-subtle px-2 py-1 text-xs font-medium text-brand"
+                  >
                     {language === 'ru' ? definition.label.ru : definition.label.uz}
                   </span>
                 );
@@ -248,7 +294,9 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-5 flex gap-2">
-              <Button variant="secondary" onClick={() => setStep(1)}>Orqaga</Button>
+              <Button variant="secondary" onClick={() => setStep(1)}>
+                Orqaga
+              </Button>
               <Button onClick={createBusiness} loading={submitting} fullWidth>
                 Biznesni yaratish
               </Button>
@@ -262,7 +310,10 @@ export default function OnboardingPage() {
 
         {tenants.length > 0 && (
           <p className="mt-5 text-center text-sm">
-            <button onClick={() => router.replace('/')} className="text-content-muted hover:underline">
+            <button
+              onClick={() => router.replace('/')}
+              className="text-content-muted hover:underline"
+            >
               Mavjud biznesga qaytish
             </button>
           </p>

@@ -23,7 +23,11 @@ export function BottomNav({ slug, cartCount }: { slug: string; cartCount?: numbe
     { href: `/${slug}`, label: 'Asosiy', icon: '⌂' },
     ...(isCommerce
       ? [
-          { href: `/${slug}/catalog`, label: data?.tenant.templateKey === 'RESTAURANT' ? 'Menyu' : 'Katalog', icon: '☰' },
+          {
+            href: `/${slug}/catalog`,
+            label: data?.tenant.templateKey === 'RESTAURANT' ? 'Menyu' : 'Katalog',
+            icon: '☰',
+          },
           { href: `/${slug}/cart`, label: 'Savat', icon: '▤', badge: cartCount },
           { href: `/${slug}/orders`, label: 'Buyurtmalar', icon: '▦' },
         ]
@@ -44,7 +48,8 @@ export function BottomNav({ slug, cartCount }: { slug: string; cartCount?: numbe
     >
       <div className="flex">
         {tabs.map((tab) => {
-          const active = tab.href === `/${slug}` ? pathname === tab.href : pathname?.startsWith(tab.href);
+          const active =
+            tab.href === `/${slug}` ? pathname === tab.href : pathname?.startsWith(tab.href);
           return (
             <Link
               key={tab.href}

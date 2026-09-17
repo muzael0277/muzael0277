@@ -33,16 +33,19 @@ export default function RegisterPage() {
       language,
     });
     if (!parsed.success) {
-      setErrors(Object.fromEntries(
-        parsed.error.issues.map((issue) => [issue.path.join('.'), issue.message]),
-      ));
+      setErrors(
+        Object.fromEntries(
+          parsed.error.issues.map((issue) => [issue.path.join('.'), issue.message]),
+        ),
+      );
       return;
     }
 
     setSubmitting(true);
     try {
       const result = await api<{ accessToken: string }>('/auth/register', {
-        method: 'POST', body: parsed.data,
+        method: 'POST',
+        body: parsed.data,
       });
       setAccessToken(result.accessToken);
       await reload();
@@ -71,15 +74,32 @@ export default function RegisterPage() {
         <Card className="p-6">
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <Field label="Ismingiz" required error={errors.firstName}>
-              <Input value={form.firstName} onChange={update('firstName')} autoComplete="given-name" required />
+              <Input
+                value={form.firstName}
+                onChange={update('firstName')}
+                autoComplete="given-name"
+                required
+              />
             </Field>
 
             <Field label={t(language, 'auth.email')} required error={errors.email}>
-              <Input type="email" value={form.email} onChange={update('email')} autoComplete="email" required />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={update('email')}
+                autoComplete="email"
+                required
+              />
             </Field>
 
             <Field label="Telefon" hint="+998 90 123 45 67" error={errors.phone}>
-              <Input type="tel" value={form.phone} onChange={update('phone')} autoComplete="tel" placeholder="+998 90 123 45 67" />
+              <Input
+                type="tel"
+                value={form.phone}
+                onChange={update('phone')}
+                autoComplete="tel"
+                placeholder="+998 90 123 45 67"
+              />
             </Field>
 
             <Field
@@ -88,10 +108,18 @@ export default function RegisterPage() {
               hint="Kamida 10 ta belgi"
               error={errors.password}
             >
-              <Input type="password" value={form.password} onChange={update('password')} autoComplete="new-password" required />
+              <Input
+                type="password"
+                value={form.password}
+                onChange={update('password')}
+                autoComplete="new-password"
+                required
+              />
             </Field>
 
-            <Button type="submit" fullWidth loading={submitting}>Davom etish</Button>
+            <Button type="submit" fullWidth loading={submitting}>
+              Davom etish
+            </Button>
           </form>
         </Card>
 

@@ -95,7 +95,10 @@ export default function LoginPage() {
                 <button
                   key={demoEmail}
                   type="button"
-                  onClick={() => { setEmail(demoEmail!); setPassword('BizBotDemo2026'); }}
+                  onClick={() => {
+                    setEmail(demoEmail!);
+                    setPassword('BizBotDemo2026');
+                  }}
                   className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-surface-sunken"
                 >
                   <span className="font-mono text-content">{demoEmail}</span>

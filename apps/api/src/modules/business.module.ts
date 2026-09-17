@@ -27,17 +27,35 @@ import { ShopController } from './shop/shop.controller';
  */
 @Module({
   providers: [
-    CatalogService, ServicesService, CustomersService, CartService,
-    OrdersService, BookingsService, LoyaltyService, AnalyticsService, BranchesService,
+    CatalogService,
+    ServicesService,
+    CustomersService,
+    CartService,
+    OrdersService,
+    BookingsService,
+    LoyaltyService,
+    AnalyticsService,
+    BranchesService,
   ],
   controllers: [
-    CatalogController, ServicesController, CrmController, OrdersController,
-    BookingsController, AnalyticsController, BranchesController, EmployeesController,
+    CatalogController,
+    ServicesController,
+    CrmController,
+    OrdersController,
+    BookingsController,
+    AnalyticsController,
+    BranchesController,
+    EmployeesController,
     ShopController,
   ],
   exports: [
-    CatalogService, CustomersService, CartService, OrdersService,
-    BookingsService, LoyaltyService, AnalyticsService,
+    CatalogService,
+    CustomersService,
+    CartService,
+    OrdersService,
+    BookingsService,
+    LoyaltyService,
+    AnalyticsService,
   ],
 })
 export class BusinessModule {}

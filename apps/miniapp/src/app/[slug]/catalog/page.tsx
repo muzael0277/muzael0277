@@ -10,15 +10,24 @@ import { BottomNav } from '@/components/nav';
 import { haptic } from '@/lib/telegram';
 
 interface Product {
-  id: string; name: string; description: string; price: number; oldPrice: number | null;
-  image: string | null; categoryId: string | null; isAvailable: boolean;
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  oldPrice: number | null;
+  image: string | null;
+  categoryId: string | null;
+  isAvailable: boolean;
   variants: { id: string; name: string; priceModifier: number; isAvailable: boolean }[];
 }
 
 interface ProductDetail extends Product {
   images: string[];
   modifierGroups: {
-    id: string; name: string; minSelect: number; maxSelect: number;
+    id: string;
+    name: string;
+    minSelect: number;
+    maxSelect: number;
     options: { id: string; name: string; price: number; isDefault: boolean }[];
   }[];
 }
@@ -86,7 +95,9 @@ export default function CatalogPage({ params }: { params: { slug: string } }) {
                 key={item.id}
                 onClick={() => setCategory(item.id)}
                 className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-sm transition ${
-                  category === item.id ? 'bg-brand text-brand-fg' : 'bg-surface-sunken text-content-muted'
+                  category === item.id
+                    ? 'bg-brand text-brand-fg'
+                    : 'bg-surface-sunken text-content-muted'
                 }`}
               >
                 {item.name}
@@ -99,7 +110,9 @@ export default function CatalogPage({ params }: { params: { slug: string } }) {
       <div className="p-4">
         {!data ? (
           <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-44" />)}
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-44" />
+            ))}
           </div>
         ) : visible.length === 0 ? (
           <EmptyState title="Hech narsa topilmadi" />
@@ -108,13 +121,18 @@ export default function CatalogPage({ params }: { params: { slug: string } }) {
             {visible.map((product) => (
               <button
                 key={product.id}
-                onClick={() => { haptic('light'); setOpenProduct(product.id); }}
+                onClick={() => {
+                  haptic('light');
+                  setOpenProduct(product.id);
+                }}
                 className="text-left"
                 disabled={!product.isAvailable}
               >
                 <Card className={`overflow-hidden ${!product.isAvailable ? 'opacity-50' : ''}`}>
                   <div className="relative aspect-square bg-surface-sunken">
-                    {product.image && <img src={product.image} alt="" className="h-full w-full object-cover" />}
+                    {product.image && (
+                      <img src={product.image} alt="" className="h-full w-full object-cover" />
+                    )}
                     {product.oldPrice && (
                       <span className="absolute left-2 top-2 rounded-md bg-critical px-1.5 py-0.5 text-xs font-medium text-white">
                         −{Math.round((1 - product.price / product.oldPrice) * 100)}%
@@ -157,7 +175,10 @@ export default function CatalogPage({ params }: { params: { slug: string } }) {
           setOpenProduct(null);
           await mutateCart();
         }}
-        onError={(message) => { haptic('error'); toast.error(message); }}
+        onError={(message) => {
+          haptic('error');
+          toast.error(message);
+        }}
       />
 
       <BottomNav slug={params.slug} cartCount={cartCount} />
@@ -173,7 +194,12 @@ export default function CatalogPage({ params }: { params: { slug: string } }) {
  * customer an error they could not have anticipated.
  */
 function ProductSheet({
-  detail, open, onClose, money, onAdded, onError,
+  detail,
+  open,
+  onClose,
+  money,
+  onAdded,
+  onError,
 }: {
   detail: ProductDetail | null;
   open: boolean;
@@ -202,7 +228,11 @@ function ProductSheet({
   }, [detail]);
 
   if (!detail) {
-    return <Modal open={open} onClose={onClose} title="..."><Skeleton className="h-32" /></Modal>;
+    return (
+      <Modal open={open} onClose={onClose} title="...">
+        <Skeleton className="h-32" />
+      </Modal>
+    );
   }
 
   const variant = detail.variants.find((v) => v.id === variantId);
@@ -286,7 +316,11 @@ function ProductSheet({
     >
       <div className="space-y-4">
         {detail.images[0] && (
-          <img src={detail.images[0]} alt="" className="aspect-video w-full rounded-lg object-cover" />
+          <img
+            src={detail.images[0]}
+            alt=""
+            className="aspect-video w-full rounded-lg object-cover"
+          />
         )}
         {detail.description && <p className="text-sm text-content-muted">{detail.description}</p>}
 
@@ -300,7 +334,9 @@ function ProductSheet({
                   onClick={() => setVariantId(option.id)}
                   disabled={!option.isAvailable}
                   className={`tap rounded-lg border px-3 py-2 text-sm transition ${
-                    variantId === option.id ? 'border-brand bg-brand-subtle text-brand' : 'border-line'
+                    variantId === option.id
+                      ? 'border-brand bg-brand-subtle text-brand'
+                      : 'border-line'
                   } ${!option.isAvailable ? 'opacity-40' : ''}`}
                 >
                   {option.name}
@@ -333,7 +369,9 @@ function ProductSheet({
                   <span className="text-sm">{option.name}</span>
                   <span className="flex items-center gap-2">
                     {option.price > 0 && (
-                      <span className="text-sm text-content-muted tabular">+{money(option.price)}</span>
+                      <span className="text-sm text-content-muted tabular">
+                        +{money(option.price)}
+                      </span>
                     )}
                     <input
                       type={group.maxSelect === 1 ? 'radio' : 'checkbox'}

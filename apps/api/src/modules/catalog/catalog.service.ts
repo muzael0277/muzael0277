@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@bizbot/database';
 import {
-  DomainError, ErrorCode, normalizePageParams, paginate, toSkipTake,
+  DomainError,
+  ErrorCode,
+  normalizePageParams,
+  paginate,
+  toSkipTake,
   type I18nValue,
 } from '@bizbot/shared';
 import { PrismaService } from '../../infra/prisma.service';
@@ -46,11 +50,16 @@ export class CatalogService {
   async createCategory(actorUserId: string, data: Record<string, unknown>) {
     if (data.parentId) {
       // Loading through the guarded client is what stops a parent from another tenant.
-      await this.prisma.client.category.findFirstOrThrow({ where: { id: data.parentId as string } });
+      await this.prisma.client.category.findFirstOrThrow({
+        where: { id: data.parentId as string },
+      });
     }
     const category = await this.prisma.client.category.create({ data: data as never });
     await this.audit.record({
-      actorUserId, action: 'category.created', entityType: 'CATEGORY', entityId: category.id,
+      actorUserId,
+      action: 'category.created',
+      entityType: 'CATEGORY',
+      entityId: category.id,
     });
     return category;
   }
@@ -59,9 +68,15 @@ export class CatalogService {
     if (data.parentId === id) {
       throw new DomainError(ErrorCode.VALIDATION_FAILED, 'A category cannot be its own parent');
     }
-    const category = await this.prisma.client.category.update({ where: { id }, data: data as never });
+    const category = await this.prisma.client.category.update({
+      where: { id },
+      data: data as never,
+    });
     await this.audit.record({
-      actorUserId, action: 'category.updated', entityType: 'CATEGORY', entityId: id,
+      actorUserId,
+      action: 'category.updated',
+      entityType: 'CATEGORY',
+      entityId: id,
     });
     return category;
   }
@@ -71,22 +86,35 @@ export class CatalogService {
     if (productCount > 0) {
       // Deleting would orphan products silently; making the owner move them is the
       // honest behaviour.
-      throw new DomainError(ErrorCode.CONFLICT, 'Move or delete the products in this category first', {
-        productCount,
-      });
+      throw new DomainError(
+        ErrorCode.CONFLICT,
+        'Move or delete the products in this category first',
+        {
+          productCount,
+        },
+      );
     }
     await this.prisma.client.category.delete({ where: { id } });
     await this.audit.record({
-      actorUserId, action: 'category.deleted', entityType: 'CATEGORY', entityId: id,
+      actorUserId,
+      action: 'category.deleted',
+      entityType: 'CATEGORY',
+      entityId: id,
     });
   }
 
   // ── products ─────────────────────────────────────────────────────────────────
 
   async listProducts(query: {
-    page?: number; pageSize?: number; search?: string; categoryId?: string;
-    isActive?: boolean; isFeatured?: boolean; lowStock?: boolean;
-    sortBy?: string; sortOrder?: 'asc' | 'desc';
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    categoryId?: string;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    lowStock?: boolean;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }) {
     const page = normalizePageParams(query);
     const where: Prisma.ProductWhereInput = { archivedAt: null };
@@ -109,7 +137,9 @@ export class CatalogService {
 
     const [items, total] = await Promise.all([
       this.prisma.client.product.findMany({
-        where, orderBy, ...toSkipTake(page),
+        where,
+        orderBy,
+        ...toSkipTake(page),
         include: {
           category: { select: { id: true, name: true } },
           variants: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
@@ -122,11 +152,19 @@ export class CatalogService {
     // Low stock is a computed condition over both the product and its variants, so it is
     // applied after loading rather than expressed as a fragile SQL predicate.
     const filtered = query.lowStock
-      ? items.filter((p) => p.trackInventory && p.lowStockThreshold !== null &&
-          this.effectiveStock(p) <= p.lowStockThreshold)
+      ? items.filter(
+          (p) =>
+            p.trackInventory &&
+            p.lowStockThreshold !== null &&
+            this.effectiveStock(p) <= p.lowStockThreshold,
+        )
       : items;
 
-    return paginate(filtered.map((p) => this.presentProduct(p)), total, page);
+    return paginate(
+      filtered.map((p) => this.presentProduct(p)),
+      total,
+      page,
+    );
   }
 
   async getProduct(id: string) {
@@ -146,10 +184,15 @@ export class CatalogService {
   }
 
   async createProduct(actorUserId: string, input: Record<string, unknown>) {
-    const { modifierGroupIds, ...data } = input as { modifierGroupIds?: string[] } & Record<string, unknown>;
+    const { modifierGroupIds, ...data } = input as { modifierGroupIds?: string[] } & Record<
+      string,
+      unknown
+    >;
 
     if (data.categoryId) {
-      await this.prisma.client.category.findFirstOrThrow({ where: { id: data.categoryId as string } });
+      await this.prisma.client.category.findFirstOrThrow({
+        where: { id: data.categoryId as string },
+      });
     }
     if (modifierGroupIds?.length) await this.assertModifierGroupsExist(modifierGroupIds);
 
@@ -167,18 +210,26 @@ export class CatalogService {
     });
 
     await this.audit.record({
-      actorUserId, action: 'product.created', entityType: 'PRODUCT', entityId: product.id,
+      actorUserId,
+      action: 'product.created',
+      entityType: 'PRODUCT',
+      entityId: product.id,
       after: { name: product.name, price: product.price },
     });
     return this.getProduct(product.id);
   }
 
   async updateProduct(actorUserId: string, id: string, input: Record<string, unknown>) {
-    const { modifierGroupIds, ...data } = input as { modifierGroupIds?: string[] } & Record<string, unknown>;
+    const { modifierGroupIds, ...data } = input as { modifierGroupIds?: string[] } & Record<
+      string,
+      unknown
+    >;
     const before = await this.prisma.client.product.findFirstOrThrow({ where: { id } });
 
     if (data.categoryId) {
-      await this.prisma.client.category.findFirstOrThrow({ where: { id: data.categoryId as string } });
+      await this.prisma.client.category.findFirstOrThrow({
+        where: { id: data.categoryId as string },
+      });
     }
 
     const after = await this.prisma.client.product.update({ where: { id }, data: data as never });
@@ -188,7 +239,11 @@ export class CatalogService {
       await this.prisma.client.productModifierGroup.deleteMany({ where: { productId: id } });
       if (modifierGroupIds.length > 0) {
         await this.prisma.client.productModifierGroup.createMany({
-          data: modifierGroupIds.map((groupId, i) => ({ productId: id, groupId, sortOrder: i })) as never,
+          data: modifierGroupIds.map((groupId, i) => ({
+            productId: id,
+            groupId,
+            sortOrder: i,
+          })) as never,
         });
       }
     }
@@ -213,7 +268,10 @@ export class CatalogService {
       data: { archivedAt: new Date(), isActive: false },
     });
     await this.audit.record({
-      actorUserId, action: 'product.archived', entityType: 'PRODUCT', entityId: id,
+      actorUserId,
+      action: 'product.archived',
+      entityType: 'PRODUCT',
+      entityId: id,
     });
   }
 
@@ -239,11 +297,16 @@ export class CatalogService {
   async listModifierGroups() {
     return this.prisma.client.modifierGroup.findMany({
       orderBy: { sortOrder: 'asc' },
-      include: { options: { orderBy: { sortOrder: 'asc' } }, _count: { select: { products: true } } },
+      include: {
+        options: { orderBy: { sortOrder: 'asc' } },
+        _count: { select: { products: true } },
+      },
     });
   }
 
-  async createModifierGroup(data: { options: Record<string, unknown>[] } & Record<string, unknown>) {
+  async createModifierGroup(
+    data: { options: Record<string, unknown>[] } & Record<string, unknown>,
+  ) {
     const { options, ...group } = data;
     return this.prisma.client.modifierGroup.create({
       data: { ...(group as Record<string, unknown>), options: { create: options } } as never,
@@ -251,10 +314,14 @@ export class CatalogService {
     });
   }
 
-  async updateModifierGroup(id: string, data: { options?: Record<string, unknown>[] } & Record<string, unknown>) {
+  async updateModifierGroup(
+    id: string,
+    data: { options?: Record<string, unknown>[] } & Record<string, unknown>,
+  ) {
     const { options, ...group } = data;
     await this.prisma.client.modifierGroup.update({
-      where: { id }, data: group as Record<string, unknown> as never,
+      where: { id },
+      data: group as Record<string, unknown> as never,
     });
 
     if (options) {
@@ -266,7 +333,8 @@ export class CatalogService {
       });
     }
     return this.prisma.client.modifierGroup.findFirstOrThrow({
-      where: { id }, include: { options: { orderBy: { sortOrder: 'asc' } } },
+      where: { id },
+      include: { options: { orderBy: { sortOrder: 'asc' } } },
     });
   }
 
@@ -283,19 +351,30 @@ export class CatalogService {
     }
   }
 
-  private productOrderBy(sortBy?: string, sortOrder: 'asc' | 'desc' = 'asc'): Prisma.ProductOrderByWithRelationInput {
+  private productOrderBy(
+    sortBy?: string,
+    sortOrder: 'asc' | 'desc' = 'asc',
+  ): Prisma.ProductOrderByWithRelationInput {
     // An allow-list, not a pass-through: letting a client name any column is both a
     // query-plan hazard and a way to probe the schema.
     switch (sortBy) {
-      case 'price': return { price: sortOrder };
-      case 'createdAt': return { createdAt: sortOrder };
-      case 'stockQuantity': return { stockQuantity: sortOrder };
-      case 'name': return { createdAt: sortOrder }; // JSON name cannot be ordered usefully
-      default: return { sortOrder };
+      case 'price':
+        return { price: sortOrder };
+      case 'createdAt':
+        return { createdAt: sortOrder };
+      case 'stockQuantity':
+        return { stockQuantity: sortOrder };
+      case 'name':
+        return { createdAt: sortOrder }; // JSON name cannot be ordered usefully
+      default:
+        return { sortOrder };
     }
   }
 
-  private effectiveStock(product: { stockQuantity: number; variants?: { stockQuantity: number }[] }) {
+  private effectiveStock(product: {
+    stockQuantity: number;
+    variants?: { stockQuantity: number }[];
+  }) {
     // With variants, the product-level number is meaningless — stock lives on variants.
     if (product.variants?.length) {
       return product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);

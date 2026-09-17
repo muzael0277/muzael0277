@@ -1,10 +1,25 @@
-import { formatMoney, formatUzPhone, resolveI18n, type CurrencyCode, type I18nValue, type Language } from '@bizbot/shared';
+import {
+  formatMoney,
+  formatUzPhone,
+  resolveI18n,
+  type CurrencyCode,
+  type I18nValue,
+  type Language,
+} from '@bizbot/shared';
 
 /** Display helpers shared by every admin screen, so formatting never drifts per page. */
 
-export function money(amount: number | string | bigint | null | undefined, currency = 'UZS', language: Language = 'uz') {
+export function money(
+  amount: number | string | bigint | null | undefined,
+  currency = 'UZS',
+  language: Language = 'uz',
+) {
   if (amount === null || amount === undefined) return '—';
-  return formatMoney(typeof amount === 'string' ? Number(amount) : amount, currency as CurrencyCode, language);
+  return formatMoney(
+    typeof amount === 'string' ? Number(amount) : amount,
+    currency as CurrencyCode,
+    language,
+  );
 }
 
 export function phone(value: string | null | undefined) {
@@ -19,15 +34,22 @@ export function text(value: I18nValue | string | null | undefined, language: Lan
 export function dateTime(value: string | Date | null | undefined, timezone = 'Asia/Tashkent') {
   if (!value) return '—';
   return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: timezone, day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(value));
 }
 
 export function date(value: string | Date | null | undefined, timezone = 'Asia/Tashkent') {
   if (!value) return '—';
   return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: timezone, day: '2-digit', month: '2-digit', year: 'numeric',
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   }).format(new Date(value));
 }
 
@@ -51,7 +73,11 @@ export function relative(value: string | Date | null | undefined, language: Lang
   const unit: keyof typeof UZ_RELATIVE =
     Math.abs(diffMinutes) < 60 ? 'minute' : Math.abs(diffMinutes) < 1440 ? 'hour' : 'day';
   const amount =
-    unit === 'minute' ? diffMinutes : unit === 'hour' ? Math.round(diffMinutes / 60) : Math.round(diffMinutes / 1440);
+    unit === 'minute'
+      ? diffMinutes
+      : unit === 'hour'
+        ? Math.round(diffMinutes / 60)
+        : Math.round(diffMinutes / 1440);
 
   if (language === 'uz') {
     if (unit === 'minute' && Math.abs(amount) < 1) return 'hozir';
@@ -63,11 +89,21 @@ export function relative(value: string | Date | null | undefined, language: Lang
 }
 
 export const ORDER_STATUS_TONE = {
-  NEW: 'info', ACCEPTED: 'brand', PREPARING: 'warning', READY: 'positive',
-  DELIVERING: 'brand', COMPLETED: 'positive', CANCELLED: 'critical',
+  NEW: 'info',
+  ACCEPTED: 'brand',
+  PREPARING: 'warning',
+  READY: 'positive',
+  DELIVERING: 'brand',
+  COMPLETED: 'positive',
+  CANCELLED: 'critical',
 } as const;
 
 export const BOOKING_STATUS_TONE = {
-  PENDING: 'warning', CONFIRMED: 'info', ARRIVED: 'brand', IN_PROGRESS: 'brand',
-  COMPLETED: 'positive', CANCELLED: 'critical', NO_SHOW: 'critical',
+  PENDING: 'warning',
+  CONFIRMED: 'info',
+  ARRIVED: 'brand',
+  IN_PROGRESS: 'brand',
+  COMPLETED: 'positive',
+  CANCELLED: 'critical',
+  NO_SHOW: 'critical',
 } as const;

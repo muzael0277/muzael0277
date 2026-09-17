@@ -62,7 +62,8 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
     credentials: 'include',
     headers: {
       'content-type': 'application/json',
-      'accept-language': typeof document !== 'undefined' ? document.documentElement.lang || 'uz' : 'uz',
+      'accept-language':
+        typeof document !== 'undefined' ? document.documentElement.lang || 'uz' : 'uz',
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
       ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
       ...(headers as Record<string, string>),
@@ -73,7 +74,10 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
   // An expired access token is the common case, not an error: refresh once and retry.
   // Concurrent 401s share one refresh so a page with six widgets does not fire six.
   if (response.status === 401 && !raw) {
-    const payload = await response.clone().json().catch(() => null);
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => null);
     const code = payload?.error?.code;
     if (code === ErrorCode.TOKEN_EXPIRED || code === ErrorCode.UNAUTHENTICATED) {
       const refreshed = await refreshSession();
@@ -119,7 +123,9 @@ export async function refreshSession(): Promise<boolean> {
       return false;
     } finally {
       // Cleared on the next tick so callers awaiting this one all see the same result.
-      setTimeout(() => { refreshPromise = null; }, 0);
+      setTimeout(() => {
+        refreshPromise = null;
+      }, 0);
     }
   })();
 

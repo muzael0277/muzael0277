@@ -9,9 +9,23 @@ import { LoggerService } from '@nestjs/common';
  * beyond the systems that produced them.
  */
 const REDACTED_KEYS = [
-  'password', 'passwordHash', 'token', 'botToken', 'accessToken', 'refreshToken',
-  'secret', 'secrets', 'authorization', 'cookie', 'initData', 'signature',
-  'card', 'cardNumber', 'cvv', 'secretCipher', 'apiKey',
+  'password',
+  'passwordHash',
+  'token',
+  'botToken',
+  'accessToken',
+  'refreshToken',
+  'secret',
+  'secrets',
+  'authorization',
+  'cookie',
+  'initData',
+  'signature',
+  'card',
+  'cardNumber',
+  'cvv',
+  'secretCipher',
+  'apiKey',
 ];
 
 export const logger = pino({
@@ -28,15 +42,30 @@ export const logger = pino({
     censor: '[redacted]',
   },
   ...(process.env.NODE_ENV === 'development'
-    ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } } }
+    ? {
+        transport: {
+          target: 'pino-pretty',
+          options: { colorize: true, translateTime: 'HH:MM:ss' },
+        },
+      }
     : {}),
 });
 
 /** Adapts pino to Nest's LoggerService so framework logs share the same stream. */
 export class NestPinoLogger implements LoggerService {
-  log(message: unknown, context?: string) { logger.info({ context }, String(message)); }
-  error(message: unknown, trace?: string, context?: string) { logger.error({ context, trace }, String(message)); }
-  warn(message: unknown, context?: string) { logger.warn({ context }, String(message)); }
-  debug(message: unknown, context?: string) { logger.debug({ context }, String(message)); }
-  verbose(message: unknown, context?: string) { logger.trace({ context }, String(message)); }
+  log(message: unknown, context?: string) {
+    logger.info({ context }, String(message));
+  }
+  error(message: unknown, trace?: string, context?: string) {
+    logger.error({ context, trace }, String(message));
+  }
+  warn(message: unknown, context?: string) {
+    logger.warn({ context }, String(message));
+  }
+  debug(message: unknown, context?: string) {
+    logger.debug({ context }, String(message));
+  }
+  verbose(message: unknown, context?: string) {
+    logger.trace({ context }, String(message));
+  }
 }

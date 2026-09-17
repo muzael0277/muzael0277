@@ -69,7 +69,10 @@ export function formatMoney(
 }
 
 /** Formats without the currency symbol — for inputs and tables with a currency header. */
-export function formatAmount(amount: number | bigint, code: CurrencyCode = DEFAULT_CURRENCY): string {
+export function formatAmount(
+  amount: number | bigint,
+  code: CurrencyCode = DEFAULT_CURRENCY,
+): string {
   const meta = currencyMeta(code);
   const abs = amount < 0 ? -BigInt(amount) : BigInt(amount);
   const divisor = 10n ** BigInt(meta.exponent);

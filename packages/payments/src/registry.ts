@@ -31,10 +31,16 @@ export function availableProviders(): PaymentProviderKey[] {
 /** Maps the PaymentMethod stored on an order to its provider. */
 export function providerForMethod(method: string): PaymentProviderKey {
   switch (method) {
-    case 'CASH': case 'CARD_TERMINAL': return 'cash';
-    case 'CLICK': return 'click';
-    case 'PAYME': return 'payme';
-    case 'TELEGRAM_STARS': return 'telegram_stars';
-    default: return 'mock';
+    case 'CASH':
+    case 'CARD_TERMINAL':
+      return 'cash';
+    case 'CLICK':
+      return 'click';
+    case 'PAYME':
+      return 'payme';
+    case 'TELEGRAM_STARS':
+      return 'telegram_stars';
+    default:
+      return 'mock';
   }
 }

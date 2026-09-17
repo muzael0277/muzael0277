@@ -29,11 +29,17 @@ export class BranchesService {
   async createBranch(actorUserId: string, data: Record<string, unknown>) {
     if (data.isDefault) {
       // Exactly one default, or order routing becomes ambiguous.
-      await this.prisma.client.branch.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
+      await this.prisma.client.branch.updateMany({
+        where: { isDefault: true },
+        data: { isDefault: false },
+      });
     }
     const branch = await this.prisma.client.branch.create({ data: data as never });
     await this.audit.record({
-      actorUserId, action: 'branch.created', entityType: 'BRANCH', entityId: branch.id,
+      actorUserId,
+      action: 'branch.created',
+      entityType: 'BRANCH',
+      entityId: branch.id,
     });
     return branch;
   }
@@ -41,7 +47,8 @@ export class BranchesService {
   async updateBranch(id: string, data: Record<string, unknown>) {
     if (data.isDefault) {
       await this.prisma.client.branch.updateMany({
-        where: { isDefault: true, id: { not: id } }, data: { isDefault: false },
+        where: { isDefault: true, id: { not: id } },
+        data: { isDefault: false },
       });
     }
     return this.prisma.client.branch.update({ where: { id }, data: data as never });
@@ -49,7 +56,11 @@ export class BranchesService {
 
   async deleteBranch(id: string) {
     const upcoming = await this.prisma.client.booking.count({
-      where: { branchId: id, startsAt: { gt: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+      where: {
+        branchId: id,
+        startsAt: { gt: new Date() },
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+      },
     });
     if (upcoming > 0) {
       throw new DomainError(ErrorCode.CONFLICT, 'This branch has upcoming bookings', { upcoming });
@@ -76,7 +87,9 @@ export class BranchesService {
       include: {
         branch: true,
         services: { include: { service: true } },
-        resource: { include: { schedules: true, timeOff: { where: { endsAt: { gte: new Date() } } } } },
+        resource: {
+          include: { schedules: true, timeOff: { where: { endsAt: { gte: new Date() } } } },
+        },
       },
     });
     if (!employee) throw new DomainError(ErrorCode.NOT_FOUND, 'Employee not found');
@@ -86,8 +99,12 @@ export class BranchesService {
   async createEmployee(
     actorUserId: string,
     input: {
-      firstName: string; lastName?: string; position?: string; phone?: string;
-      branchId?: string; avatarUrl?: string | null;
+      firstName: string;
+      lastName?: string;
+      position?: string;
+      phone?: string;
+      branchId?: string;
+      avatarUrl?: string | null;
       serviceIds?: string[];
       schedule?: { weekday: number; start: string; end: string }[];
     },
@@ -119,7 +136,10 @@ export class BranchesService {
           kind: 'EMPLOYEE',
           schedules: {
             create: windows.map((w) => ({
-              tenantId: created.tenantId, weekday: w.weekday, startTime: w.start, endTime: w.end,
+              tenantId: created.tenantId,
+              weekday: w.weekday,
+              startTime: w.start,
+              endTime: w.end,
             })),
           },
         } as Prisma.BookingResourceUncheckedCreateInput,
@@ -129,17 +149,26 @@ export class BranchesService {
     });
 
     await this.audit.record({
-      actorUserId, action: 'employee.created', entityType: 'EMPLOYEE', entityId: employee.id,
+      actorUserId,
+      action: 'employee.created',
+      entityType: 'EMPLOYEE',
+      entityId: employee.id,
     });
     return this.employeeDetail(employee.id);
   }
 
   async updateEmployee(
     id: string,
-    input: { serviceIds?: string[]; schedule?: { weekday: number; start: string; end: string }[] } & Record<string, unknown>,
+    input: {
+      serviceIds?: string[];
+      schedule?: { weekday: number; start: string; end: string }[];
+    } & Record<string, unknown>,
   ) {
     const { serviceIds, schedule, ...data } = input;
-    const employee = await this.prisma.client.employee.update({ where: { id }, data: data as never });
+    const employee = await this.prisma.client.employee.update({
+      where: { id },
+      data: data as never,
+    });
 
     if (serviceIds) {
       await this.prisma.client.employeeService.deleteMany({ where: { employeeId: id } });
@@ -151,12 +180,19 @@ export class BranchesService {
     }
 
     if (schedule) {
-      const resource = await this.prisma.client.bookingResource.findFirst({ where: { employeeId: id } });
+      const resource = await this.prisma.client.bookingResource.findFirst({
+        where: { employeeId: id },
+      });
       if (resource) {
-        await this.prisma.client.resourceSchedule.deleteMany({ where: { resourceId: resource.id } });
+        await this.prisma.client.resourceSchedule.deleteMany({
+          where: { resourceId: resource.id },
+        });
         await this.prisma.client.resourceSchedule.createMany({
           data: schedule.map((w) => ({
-            resourceId: resource.id, weekday: w.weekday, startTime: w.start, endTime: w.end,
+            resourceId: resource.id,
+            weekday: w.weekday,
+            startTime: w.start,
+            endTime: w.end,
           })) as never,
         });
       }
@@ -182,13 +218,18 @@ export class BranchesService {
       },
     });
     if (upcoming > 0) {
-      throw new DomainError(ErrorCode.CONFLICT, 'This employee has upcoming bookings. Reassign them first.', {
-        upcoming,
-      });
+      throw new DomainError(
+        ErrorCode.CONFLICT,
+        'This employee has upcoming bookings. Reassign them first.',
+        {
+          upcoming,
+        },
+      );
     }
     await this.prisma.client.employee.update({ where: { id }, data: { isActive: false } });
     await this.prisma.client.bookingResource.updateMany({
-      where: { employeeId: id }, data: { isActive: false },
+      where: { employeeId: id },
+      data: { isActive: false },
     });
   }
 }

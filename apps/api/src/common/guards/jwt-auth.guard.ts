@@ -54,7 +54,8 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!token) throw new DomainError(ErrorCode.UNAUTHENTICATED, 'Missing bearer token');
 
-    const isCustomerRoute = this.reflector.getAllAndOverride<boolean>(CUSTOMER_KEY, handler) === true;
+    const isCustomerRoute =
+      this.reflector.getAllAndOverride<boolean>(CUSTOMER_KEY, handler) === true;
     const expectedAudience = isCustomerRoute ? 'customer' : 'staff';
 
     let payload: StaffTokenPayload | CustomerTokenPayload;

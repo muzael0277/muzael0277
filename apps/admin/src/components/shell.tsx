@@ -27,19 +27,78 @@ interface NavItem {
  */
 const NAV: NavItem[] = [
   { href: '/', labelKey: 'nav.dashboard', icon: '▣' },
-  { href: '/customers', labelKey: 'nav.customers', module: 'CRM', permission: 'customer:read', icon: '◍' },
-  { href: '/products', labelKey: 'nav.products', module: 'CATALOG', permission: 'product:read', icon: '▦' },
-  { href: '/services', labelKey: 'nav.services', module: 'SERVICES', permission: 'service:read', icon: '✂' },
-  { href: '/orders', labelKey: 'nav.orders', module: 'ORDERS', permission: 'order:read', icon: '▤' },
-  { href: '/bookings', labelKey: 'nav.bookings', module: 'BOOKING', permission: 'booking:read', icon: '▧' },
-  { href: '/employees', labelKey: 'nav.employees', module: 'EMPLOYEES', permission: 'employee:read', icon: '◉' },
-  { href: '/analytics', labelKey: 'nav.analytics', module: 'ANALYTICS', permission: 'analytics:read', icon: '◈' },
-  { href: '/telegram', labelKey: 'nav.telegram', module: 'TELEGRAM', permission: 'settings:read', icon: '➤' },
+  {
+    href: '/customers',
+    labelKey: 'nav.customers',
+    module: 'CRM',
+    permission: 'customer:read',
+    icon: '◍',
+  },
+  {
+    href: '/products',
+    labelKey: 'nav.products',
+    module: 'CATALOG',
+    permission: 'product:read',
+    icon: '▦',
+  },
+  {
+    href: '/services',
+    labelKey: 'nav.services',
+    module: 'SERVICES',
+    permission: 'service:read',
+    icon: '✂',
+  },
+  {
+    href: '/orders',
+    labelKey: 'nav.orders',
+    module: 'ORDERS',
+    permission: 'order:read',
+    icon: '▤',
+  },
+  {
+    href: '/bookings',
+    labelKey: 'nav.bookings',
+    module: 'BOOKING',
+    permission: 'booking:read',
+    icon: '▧',
+  },
+  {
+    href: '/employees',
+    labelKey: 'nav.employees',
+    module: 'EMPLOYEES',
+    permission: 'employee:read',
+    icon: '◉',
+  },
+  {
+    href: '/analytics',
+    labelKey: 'nav.analytics',
+    module: 'ANALYTICS',
+    permission: 'analytics:read',
+    icon: '◈',
+  },
+  {
+    href: '/telegram',
+    labelKey: 'nav.telegram',
+    module: 'TELEGRAM',
+    permission: 'settings:read',
+    icon: '➤',
+  },
   { href: '/settings', labelKey: 'nav.settings', permission: 'settings:read', icon: '⚙' },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, tenant, tenants, loading, language, setLanguage, selectTenant, logout, can, hasModule } = useSession();
+  const {
+    user,
+    tenant,
+    tenants,
+    loading,
+    language,
+    setLanguage,
+    selectTenant,
+    logout,
+    can,
+    hasModule,
+  } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = React.useState(false);
 
@@ -58,9 +117,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen items-center justify-center p-6">
         <div className="max-w-sm text-center">
           <h1 className="text-lg font-semibold">Biznes topilmadi</h1>
-          <p className="mt-2 text-sm text-content-muted">
-            Boshlash uchun biznesingizni yarating.
-          </p>
+          <p className="mt-2 text-sm text-content-muted">Boshlash uchun biznesingizni yarating.</p>
           <Link href="/onboarding" className="mt-5 inline-block">
             <Button>Biznes yaratish</Button>
           </Link>
@@ -71,8 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const visible = NAV.filter(
     (item) =>
-      (!item.module || hasModule(item.module)) &&
-      (!item.permission || can(item.permission)),
+      (!item.module || hasModule(item.module)) && (!item.permission || can(item.permission)),
   );
 
   return (
@@ -99,7 +155,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Biznes"
             >
               {tenants.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
               ))}
             </Select>
           </div>
@@ -121,7 +179,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : 'text-content-muted hover:bg-surface-sunken hover:text-content',
                 )}
               >
-                <span className="w-4 text-center opacity-70" aria-hidden>{item.icon}</span>
+                <span className="w-4 text-center opacity-70" aria-hidden>
+                  {item.icon}
+                </span>
                 {t(language, item.labelKey)}
               </Link>
             );
@@ -130,7 +190,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {menuOpen && (
-        <div className="fixed inset-0 z-30 bg-black/30 lg:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
+        <div
+          className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden
+        />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -171,8 +235,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 /** Page heading with an optional primary action. */
-export function PageHeader({ title, description, action }: {
-  title: string; description?: string; action?: React.ReactNode;
+export function PageHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">

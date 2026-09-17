@@ -34,7 +34,9 @@ export class TimelineProjector implements EventHandler, OnModuleInit {
     private readonly dispatcher: EventDispatcher,
   ) {}
 
-  onModuleInit() { this.dispatcher.register(this); }
+  onModuleInit() {
+    this.dispatcher.register(this);
+  }
 
   async handle(event: EmittedEvent): Promise<void> {
     const payload = event.payload as Record<string, unknown>;
@@ -75,12 +77,18 @@ export class TimelineProjector implements EventHandler, OnModuleInit {
         };
       case DomainEventType.ORDER_COMPLETED:
         return {
-          title: { uz: `Buyurtma yakunlandi ${p.orderNumber}`, ru: `Заказ завершён ${p.orderNumber}` },
+          title: {
+            uz: `Buyurtma yakunlandi ${p.orderNumber}`,
+            ru: `Заказ завершён ${p.orderNumber}`,
+          },
           amount: p.total as number,
         };
       case DomainEventType.ORDER_CANCELLED:
         return {
-          title: { uz: `Buyurtma bekor qilindi ${p.orderNumber}`, ru: `Заказ отменён ${p.orderNumber}` },
+          title: {
+            uz: `Buyurtma bekor qilindi ${p.orderNumber}`,
+            ru: `Заказ отменён ${p.orderNumber}`,
+          },
           body: p.reason ? { uz: String(p.reason), ru: String(p.reason) } : undefined,
         };
       case DomainEventType.BOOKING_CREATED:

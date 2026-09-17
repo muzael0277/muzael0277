@@ -10,8 +10,12 @@ import { BottomNav } from '@/components/nav';
 import { haptic } from '@/lib/telegram';
 
 interface Service {
-  id: string; name: string; description: string; price: number;
-  durationMinutes: number; imageUrl: string | null;
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMinutes: number;
+  imageUrl: string | null;
   category: { id: string; name: string } | null;
 }
 
@@ -54,17 +58,18 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
 
   // The next 14 days; a customer booking further out is rare enough to not clutter the UI.
   const days = React.useMemo(
-    () => Array.from({ length: 14 }, (_, i) => {
-      const day = new Date();
-      day.setDate(day.getDate() + i);
-      return day;
-    }),
+    () =>
+      Array.from({ length: 14 }, (_, i) => {
+        const day = new Date();
+        day.setDate(day.getDate() + i);
+        return day;
+      }),
     [],
   );
 
   const slots = resourceId
-    ? availability?.resources.find((r) => r.resource.id === resourceId)?.slots ?? []
-    : availability?.anySlots ?? [];
+    ? (availability?.resources.find((r) => r.resource.id === resourceId)?.slots ?? [])
+    : (availability?.anySlots ?? []);
 
   async function confirm() {
     if (!service || !slot) return;
@@ -92,20 +97,33 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
       <div className="p-4">
         <h1 className="mb-3 text-lg font-semibold">Xizmatlar</h1>
         {!services ? (
-          <div className="space-y-2">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-20" />)}</div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <Skeleton key={i} className="h-20" />
+            ))}
+          </div>
         ) : services.length === 0 ? (
           <EmptyState title="Xizmatlar qo‘shilmagan" />
         ) : (
           <div className="space-y-2">
             {services.map((item) => (
-              <button key={item.id} onClick={() => { haptic('light'); setService(item); }} className="w-full text-left">
+              <button
+                key={item.id}
+                onClick={() => {
+                  haptic('light');
+                  setService(item);
+                }}
+                className="w-full text-left"
+              >
                 <Card className="flex items-center gap-3 p-3.5">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{item.name}</p>
                     {item.description && (
                       <p className="line-clamp-1 text-sm text-content-muted">{item.description}</p>
                     )}
-                    <p className="mt-1 text-xs text-content-subtle">{item.durationMinutes} daqiqa</p>
+                    <p className="mt-1 text-xs text-content-subtle">
+                      {item.durationMinutes} daqiqa
+                    </p>
                   </div>
                   <span className="shrink-0 font-semibold tabular">{money(item.price)}</span>
                 </Card>
@@ -121,7 +139,11 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
   return (
     <div className="p-4">
       <button
-        onClick={() => { setService(null); setSlot(null); setResourceId(null); }}
+        onClick={() => {
+          setService(null);
+          setSlot(null);
+          setResourceId(null);
+        }}
         className="tap mb-3 text-sm text-brand"
       >
         ← Xizmatlar
@@ -139,7 +161,10 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
           <p className="mb-2 text-sm font-medium text-content-muted">Usta</p>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             <button
-              onClick={() => { setResourceId(null); setSlot(null); }}
+              onClick={() => {
+                setResourceId(null);
+                setSlot(null);
+              }}
               className={`tap shrink-0 rounded-xl border px-3.5 py-2 text-sm ${
                 resourceId === null ? 'border-brand bg-brand-subtle text-brand' : 'border-line'
               }`}
@@ -149,10 +174,15 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
             {availability.resources.map((entry) => (
               <button
                 key={entry.resource.id}
-                onClick={() => { setResourceId(entry.resource.id); setSlot(null); }}
+                onClick={() => {
+                  setResourceId(entry.resource.id);
+                  setSlot(null);
+                }}
                 disabled={entry.slots.length === 0}
                 className={`tap shrink-0 rounded-xl border px-3.5 py-2 text-sm ${
-                  resourceId === entry.resource.id ? 'border-brand bg-brand-subtle text-brand' : 'border-line'
+                  resourceId === entry.resource.id
+                    ? 'border-brand bg-brand-subtle text-brand'
+                    : 'border-line'
                 } ${entry.slots.length === 0 ? 'opacity-40' : ''}`}
               >
                 {entry.resource.name}
@@ -172,7 +202,10 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
             return (
               <button
                 key={value}
-                onClick={() => { setDate(value); setSlot(null); }}
+                onClick={() => {
+                  setDate(value);
+                  setSlot(null);
+                }}
                 className={`tap flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 ${
                   active ? 'border-brand bg-brand-subtle text-brand' : 'border-line'
                 }`}
@@ -191,7 +224,9 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
         <p className="mb-2 text-sm font-medium text-content-muted">Vaqt</p>
         {loadingSlots ? (
           <div className="grid grid-cols-4 gap-2">
-            {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-11" />)}
+            {Array.from({ length: 8 }, (_, i) => (
+              <Skeleton key={i} className="h-11" />
+            ))}
           </div>
         ) : slots.length === 0 ? (
           <EmptyState title="Bu kunda bo‘sh vaqt yo‘q" description="Boshqa sanani tanlang" />
@@ -200,7 +235,10 @@ export default function ServicesPage({ params }: { params: { slug: string } }) {
             {slots.map((option) => (
               <button
                 key={option.startsAt}
-                onClick={() => { haptic('light'); setSlot(option.startsAt); }}
+                onClick={() => {
+                  haptic('light');
+                  setSlot(option.startsAt);
+                }}
                 className={`tap rounded-lg border py-2.5 text-sm tabular transition ${
                   slot === option.startsAt ? 'border-brand bg-brand text-brand-fg' : 'border-line'
                 }`}

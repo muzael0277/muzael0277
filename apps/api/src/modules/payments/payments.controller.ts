@@ -4,7 +4,12 @@ import type { PaymentProviderKey } from '@bizbot/payments';
 import { createPaymentSchema } from '@bizbot/contracts';
 import { zodBody } from '../../common/pipes/zod-validation.pipe';
 import {
-  CurrentActor, CustomerRoute, Lang, Public, RequireModule, RequirePermission,
+  CurrentActor,
+  CustomerRoute,
+  Lang,
+  Public,
+  RequireModule,
+  RequirePermission,
 } from '../../common/decorators';
 import type { RequestActor } from '../../common/types';
 import { PaymentsService } from './payments.service';
@@ -54,10 +59,14 @@ export class CustomerPaymentsController {
 
   @Post()
   create(
-    @Body(zodBody(createPaymentSchema)) dto: { orderId?: string; method: string; returnUrl?: string },
+    @Body(zodBody(createPaymentSchema))
+    dto: { orderId?: string; method: string; returnUrl?: string },
     @Lang() lang: 'uz' | 'ru' | 'en',
   ) {
-    return this.payments.createForOrder(dto.orderId!, dto.method, { returnUrl: dto.returnUrl, language: lang });
+    return this.payments.createForOrder(dto.orderId!, dto.method, {
+      returnUrl: dto.returnUrl,
+      language: lang,
+    });
   }
 }
 

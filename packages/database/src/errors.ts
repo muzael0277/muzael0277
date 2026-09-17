@@ -4,7 +4,10 @@
  */
 
 export class MissingTenantContextError extends Error {
-  constructor(readonly model: string, readonly operation: string) {
+  constructor(
+    readonly model: string,
+    readonly operation: string,
+  ) {
     super(
       `Refusing to run ${model}.${operation} with no tenant in context. ` +
         `Wrap the call in tenantContext.run(), or use prisma.$system(reason) if this is ` +

@@ -15,8 +15,11 @@ const now = new Date('2026-09-17T12:00:00Z');
 const authDate = String(Math.floor(now.getTime() / 1000));
 
 const user = JSON.stringify({
-  id: 501111111, first_name: 'Aziz', last_name: 'Karimov',
-  username: 'aziz_uz', language_code: 'uz',
+  id: 501111111,
+  first_name: 'Aziz',
+  last_name: 'Karimov',
+  username: 'aziz_uz',
+  language_code: 'uz',
 });
 
 const validInitData = (over: Record<string, string> = {}, token = BOT_TOKEN) =>
@@ -48,14 +51,18 @@ describe('verifyInitData', () => {
 
   it('rejects a payload with no hash at all', () => {
     const params = new URLSearchParams({ user, auth_date: authDate });
-    expect(verifyInitData(params.toString(), BOT_TOKEN, { now }))
-      .toEqual({ ok: false, reason: 'MISSING_HASH' });
+    expect(verifyInitData(params.toString(), BOT_TOKEN, { now })).toEqual({
+      ok: false,
+      reason: 'MISSING_HASH',
+    });
   });
 
   it('rejects an empty hash', () => {
     const params = new URLSearchParams({ user, auth_date: authDate, hash: '' });
-    expect(verifyInitData(params.toString(), BOT_TOKEN, { now }))
-      .toEqual({ ok: false, reason: 'MISSING_HASH' });
+    expect(verifyInitData(params.toString(), BOT_TOKEN, { now })).toEqual({
+      ok: false,
+      reason: 'MISSING_HASH',
+    });
   });
 
   it('rejects a stale payload, limiting the window for a captured one', () => {
@@ -82,9 +89,13 @@ describe('verifyInitData', () => {
   });
 
   it('rejects a payload whose user field is not valid JSON', () => {
-    const params = new URLSearchParams(signInitData({ user: '{broken', auth_date: authDate }, BOT_TOKEN));
-    expect(verifyInitData(params.toString(), BOT_TOKEN, { now }))
-      .toEqual({ ok: false, reason: 'MALFORMED' });
+    const params = new URLSearchParams(
+      signInitData({ user: '{broken', auth_date: authDate }, BOT_TOKEN),
+    );
+    expect(verifyInitData(params.toString(), BOT_TOKEN, { now })).toEqual({
+      ok: false,
+      reason: 'MALFORMED',
+    });
   });
 
   it('is not fooled by reordering the fields', () => {

@@ -38,7 +38,10 @@ export class TelegramAuthService {
       throw new DomainError(ErrorCode.TENANT_SUSPENDED);
     }
     if (!tenant.telegramBot) {
-      throw new DomainError(ErrorCode.TELEGRAM_BOT_TOKEN_INVALID, 'This business has not connected a bot yet');
+      throw new DomainError(
+        ErrorCode.TELEGRAM_BOT_TOKEN_INVALID,
+        'This business has not connected a bot yet',
+      );
     }
 
     const botToken = this.vault.open({
@@ -59,7 +62,8 @@ export class TelegramAuthService {
     }
 
     const tgUser = result.data.user;
-    if (!tgUser) throw new DomainError(ErrorCode.TELEGRAM_SIGNATURE_INVALID, 'initData contains no user');
+    if (!tgUser)
+      throw new DomainError(ErrorCode.TELEGRAM_SIGNATURE_INVALID, 'initData contains no user');
 
     // From here the tenant is established by the signature, not by the request, so the
     // rest runs inside a normal tenant context.
@@ -80,13 +84,20 @@ export class TelegramAuthService {
     return {
       ...session,
       customer: {
-        id: customer.id, firstName: customer.firstName, lastName: customer.lastName,
-        phone: customer.phone, language: customer.language,
+        id: customer.id,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phone: customer.phone,
+        language: customer.language,
       },
       tenant: {
-        id: tenant.id, slug: tenant.slug, name: tenant.name,
-        logoUrl: tenant.logoUrl, primaryColor: tenant.primaryColor,
-        currency: tenant.currency, defaultLanguage: tenant.defaultLanguage,
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        logoUrl: tenant.logoUrl,
+        primaryColor: tenant.primaryColor,
+        currency: tenant.currency,
+        defaultLanguage: tenant.defaultLanguage,
       },
       startParam: result.data.start_param ?? null,
     };

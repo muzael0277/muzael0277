@@ -2,16 +2,16 @@
 
 ## 1. Authentication
 
-* Passwords: **argon2id** (64 MB, t=3, p=4). Never MD5/SHA/bcrypt-with-low-cost.
-* Access token: JWT, 15 min, `aud: "staff" | "customer"`, signed HS256 with a key that is
+- Passwords: **argon2id** (64 MB, t=3, p=4). Never MD5/SHA/bcrypt-with-low-cost.
+- Access token: JWT, 15 min, `aud: "staff" | "customer"`, signed HS256 with a key that is
   distinct from the refresh key.
-* Refresh token: 256-bit random, **stored hashed** (SHA-256), 30 days, rotated on every
+- Refresh token: 256-bit random, **stored hashed** (SHA-256), 30 days, rotated on every
   use. Reuse of a consumed refresh token revokes the entire family and writes an
   `AuditLog` — that is how stolen-token replay is detected.
-* Admin app holds the refresh token in an `httpOnly; Secure; SameSite=Strict` cookie; the
+- Admin app holds the refresh token in an `httpOnly; Secure; SameSite=Strict` cookie; the
   access token stays in memory. The Mini App uses `Authorization: Bearer` (no cookie,
   because it runs inside Telegram's webview).
-* Login throttling: 5 attempts / 15 min per (email, IP), exponential lockout, generic
+- Login throttling: 5 attempts / 15 min per (email, IP), exponential lockout, generic
   error message (no user enumeration).
 
 ## 2. Authorization
@@ -22,27 +22,27 @@ rewritten to include the tenant filter so a leaked id is not a capability.
 
 ## 3. Input & output
 
-* Every request body/query/param passes a zod schema; unknown keys are stripped.
-* Prisma parameterises everything; `$queryRawUnsafe` is banned by an ESLint rule.
-* No HTML is rendered from user input; React escapes by default and
+- Every request body/query/param passes a zod schema; unknown keys are stripped.
+- Prisma parameterises everything; `$queryRawUnsafe` is banned by an ESLint rule.
+- No HTML is rendered from user input; React escapes by default and
   `dangerouslySetInnerHTML` is lint-banned.
-* File uploads: extension + MIME + **magic-byte** check, size caps, images re-encoded
+- File uploads: extension + MIME + **magic-byte** check, size caps, images re-encoded
   through sharp (which strips EXIF and any embedded payload), random storage keys,
   served from a separate origin, `Content-Disposition: attachment` for non-images.
 
 ## 4. Secrets
 
-* Never in the repository. `.env.example` lists names only.
-* Third-party credentials: AES-256-GCM in `SecretVault`, keyed by
+- Never in the repository. `.env.example` lists names only.
+- Third-party credentials: AES-256-GCM in `SecretVault`, keyed by
   `SECRETS_ENCRYPTION_KEY` (32 bytes, rotatable via `keyVersion` on each record).
-* Logger runs a redaction pass over `password`, `token`, `secret`, `authorization`,
+- Logger runs a redaction pass over `password`, `token`, `secret`, `authorization`,
   `initData`, `card`, `signature` at any depth.
 
 ## 5. Webhooks
 
-* Inbound: signature verification before any parsing that has side effects; replay
+- Inbound: signature verification before any parsing that has side effects; replay
   protection through `ProcessedWebhook`; raw body preserved for HMAC.
-* Outbound: `X-BizBot-Signature: t=<ts>,v1=<hmac>` over `timestamp.body`, 5-minute
+- Outbound: `X-BizBot-Signature: t=<ts>,v1=<hmac>` over `timestamp.body`, 5-minute
   tolerance, exponential retry, deliveries logged.
 
 ## 6. Transport & headers

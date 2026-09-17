@@ -4,7 +4,11 @@ import { DomainError, ErrorCode } from '@bizbot/shared';
 import { tenantContext } from '@bizbot/database';
 import { PrismaService } from '../../infra/prisma.service';
 import {
-  PricingService, type PricingInput, type PricingLineInput, type PricingResult, type PromoRule,
+  PricingService,
+  type PricingInput,
+  type PricingLineInput,
+  type PricingResult,
+  type PromoRule,
 } from './pricing.service';
 
 /**
@@ -30,13 +34,20 @@ export class CartService {
 
     await this.prisma.client.cart.create({ data: { customerId } as never });
     return this.prisma.client.cart.findFirstOrThrow({
-      where: { customerId }, include: this.cartInclude(),
+      where: { customerId },
+      include: this.cartInclude(),
     });
   }
 
   async addItem(
     customerId: string,
-    input: { productId: string; variantId?: string | null; quantity: number; modifierOptionIds: string[]; comment?: string },
+    input: {
+      productId: string;
+      variantId?: string | null;
+      quantity: number;
+      modifierOptionIds: string[];
+      comment?: string;
+    },
   ) {
     const cart = await this.getOrCreate(customerId);
 
@@ -49,7 +60,10 @@ export class CartService {
         modifierGroups: { include: { group: { include: { options: true } } } },
       },
     });
-    if (!product) throw new DomainError(ErrorCode.PRODUCT_UNAVAILABLE, undefined, { productId: input.productId });
+    if (!product)
+      throw new DomainError(ErrorCode.PRODUCT_UNAVAILABLE, undefined, {
+        productId: input.productId,
+      });
 
     if (input.variantId && !product.variants.some((v) => v.id === input.variantId && v.isActive)) {
       throw new DomainError(ErrorCode.PRODUCT_UNAVAILABLE, 'That option is not available', {
@@ -57,7 +71,10 @@ export class CartService {
       });
     }
 
-    this.assertModifierSelection(product.modifierGroups.map((l) => l.group), input.modifierOptionIds);
+    this.assertModifierSelection(
+      product.modifierGroups.map((l) => l.group),
+      input.modifierOptionIds,
+    );
     await this.assertStock(product, input.variantId ?? null, input.quantity);
 
     // Identical selections merge into one line, which is what a customer expects when
@@ -66,7 +83,10 @@ export class CartService {
       (item) =>
         item.productId === input.productId &&
         (item.variantId ?? null) === (input.variantId ?? null) &&
-        sameModifierSet(item.modifiers.map((m) => m.optionId), input.modifierOptionIds),
+        sameModifierSet(
+          item.modifiers.map((m) => m.optionId),
+          input.modifierOptionIds,
+        ),
     );
 
     if (existing) {
@@ -110,7 +130,8 @@ export class CartService {
     } else {
       await this.assertStock(
         await this.prisma.client.product.findFirstOrThrow({
-          where: { id: item.productId }, include: { variants: true },
+          where: { id: item.productId },
+          include: { variants: true },
         }),
         item.variantId,
         quantity,
@@ -183,7 +204,9 @@ export class CartService {
           quantity: item.quantity,
           comment: item.comment,
           modifiers: item.modifiers.map((m) => ({
-            optionId: m.optionId, name: m.option.name, price: m.option.price,
+            optionId: m.optionId,
+            name: m.option.name,
+            price: m.option.price,
           })),
           unitPrice: pricing.lines[i]?.effectiveUnitPrice ?? 0,
           modifiersPrice: pricing.lines[i]?.modifiersPrice ?? 0,
@@ -217,7 +240,9 @@ export class CartService {
     const delivery = (settings?.deliverySettings ?? {}) as Record<string, number | boolean | null>;
     const loyalty = (settings?.loyaltySettings ?? {}) as Record<string, number | boolean>;
 
-    const promo = input.promoCode ? await this.resolvePromo(input.promoCode, input.customerId) : null;
+    const promo = input.promoCode
+      ? await this.resolvePromo(input.promoCode, input.customerId)
+      : null;
 
     const pricingLines: PricingLineInput[] = input.lines.map((item) => ({
       productId: item.productId,
@@ -226,7 +251,9 @@ export class CartService {
       unitPrice: item.product.price,
       variantPriceModifier: item.variant?.priceModifier ?? 0,
       modifiers: item.modifiers.map((m) => ({
-        optionId: m.optionId, name: m.option.name, price: m.option.price,
+        optionId: m.optionId,
+        name: m.option.name,
+        price: m.option.price,
       })),
       nameSnapshot: item.product.name,
       variantNameSnapshot: item.variant?.name ?? null,
@@ -241,8 +268,10 @@ export class CartService {
       delivery: {
         enabled: delivery.enabled !== false,
         flatFee: Number(delivery.flatFee ?? 0),
-        freeAbove: delivery.freeAbove === null || delivery.freeAbove === undefined
-          ? null : Number(delivery.freeAbove),
+        freeAbove:
+          delivery.freeAbove === null || delivery.freeAbove === undefined
+            ? null
+            : Number(delivery.freeAbove),
         minOrderTotal: Number(delivery.minOrderTotal ?? 0),
       },
       loyalty: {
@@ -263,11 +292,14 @@ export class CartService {
     const promo = await this.prisma.client.promoCode.findFirst({
       where: { code: code.toUpperCase() },
     });
-    if (!promo || !promo.isActive) throw new DomainError(ErrorCode.PROMO_NOT_FOUND, undefined, { code });
+    if (!promo || !promo.isActive)
+      throw new DomainError(ErrorCode.PROMO_NOT_FOUND, undefined, { code });
 
     const now = new Date();
     if (promo.startsAt && promo.startsAt > now) {
-      throw new DomainError(ErrorCode.PROMO_EXPIRED, 'This code is not active yet', { startsAt: promo.startsAt });
+      throw new DomainError(ErrorCode.PROMO_EXPIRED, 'This code is not active yet', {
+        startsAt: promo.startsAt,
+      });
     }
     if (promo.endsAt && promo.endsAt < now) {
       throw new DomainError(ErrorCode.PROMO_EXPIRED, undefined, { endsAt: promo.endsAt });
@@ -287,8 +319,12 @@ export class CartService {
     }
 
     return {
-      id: promo.id, code: promo.code, type: promo.type,
-      value: promo.value, minOrderTotal: promo.minOrderTotal, maxDiscount: promo.maxDiscount,
+      id: promo.id,
+      code: promo.code,
+      type: promo.type,
+      value: promo.value,
+      minOrderTotal: promo.minOrderTotal,
+      maxDiscount: promo.maxDiscount,
     };
   }
 
@@ -313,7 +349,13 @@ export class CartService {
    * that allows one — and the kitchen would receive an order it cannot make.
    */
   private assertModifierSelection(
-    groups: { id: string; name: unknown; minSelect: number; maxSelect: number; options: { id: string }[] }[],
+    groups: {
+      id: string;
+      name: unknown;
+      minSelect: number;
+      maxSelect: number;
+      options: { id: string }[];
+    }[],
     selectedIds: string[],
   ) {
     const selected = new Set(selectedIds);
@@ -321,9 +363,13 @@ export class CartService {
 
     for (const id of selected) {
       if (!known.has(id)) {
-        throw new DomainError(ErrorCode.MODIFIER_SELECTION_INVALID, 'Unknown option for this product', {
-          optionId: id,
-        });
+        throw new DomainError(
+          ErrorCode.MODIFIER_SELECTION_INVALID,
+          'Unknown option for this product',
+          {
+            optionId: id,
+          },
+        );
       }
     }
 
@@ -331,23 +377,34 @@ export class CartService {
       const chosen = group.options.filter((o) => selected.has(o.id)).length;
       if (chosen < group.minSelect || chosen > group.maxSelect) {
         throw new DomainError(ErrorCode.MODIFIER_SELECTION_INVALID, undefined, {
-          group: group.name, chosen, minSelect: group.minSelect, maxSelect: group.maxSelect,
+          group: group.name,
+          chosen,
+          minSelect: group.minSelect,
+          maxSelect: group.maxSelect,
         });
       }
     }
   }
 
   private async assertStock(
-    product: { id: string; trackInventory: boolean; stockQuantity: number; variants: { id: string; stockQuantity: number }[] },
+    product: {
+      id: string;
+      trackInventory: boolean;
+      stockQuantity: number;
+      variants: { id: string; stockQuantity: number }[];
+    },
     variantId: string | null,
     quantity: number,
   ) {
     if (!product.trackInventory) return;
     const available = variantId
-      ? product.variants.find((v) => v.id === variantId)?.stockQuantity ?? 0
+      ? (product.variants.find((v) => v.id === variantId)?.stockQuantity ?? 0)
       : product.stockQuantity;
     if (available < quantity) {
-      throw new DomainError(ErrorCode.INSUFFICIENT_STOCK, undefined, { available, requested: quantity });
+      throw new DomainError(ErrorCode.INSUFFICIENT_STOCK, undefined, {
+        available,
+        requested: quantity,
+      });
     }
   }
 }

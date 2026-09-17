@@ -8,15 +8,27 @@ import type { Language } from '@bizbot/shared';
 import { api, refreshSession, setAccessToken } from './api';
 
 export interface SessionUser {
-  id: string; email: string; firstName: string; lastName: string | null;
-  phone: string | null; avatarUrl: string | null; language: Language;
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  language: Language;
   platformRole: 'NONE' | 'SUPPORT' | 'ADMIN';
 }
 
 export interface SessionTenant {
-  id: string; slug: string; name: string; logoUrl: string | null; primaryColor: string;
-  templateKey: string; status: string; role: Role;
-  onboardingStep: number; onboardingCompleted: boolean;
+  id: string;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  templateKey: string;
+  status: string;
+  role: Role;
+  onboardingStep: number;
+  onboardingCompleted: boolean;
   modules: string[];
 }
 
@@ -60,7 +72,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       setTenantId((current) => {
         if (current && me.tenants.some((t) => t.id === current)) return current;
-        const remembered = typeof window !== 'undefined' ? localStorage.getItem(TENANT_STORAGE_KEY) : null;
+        const remembered =
+          typeof window !== 'undefined' ? localStorage.getItem(TENANT_STORAGE_KEY) : null;
         if (remembered && me.tenants.some((t) => t.id === remembered)) return remembered;
         return me.tenants[0]?.id ?? null;
       });
@@ -77,13 +90,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null;
+      const stored =
+        typeof window !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null;
       if (stored === 'uz' || stored === 'ru' || stored === 'en') setLanguageState(stored);
 
       await refreshSession();
       if (!cancelled) await load();
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   React.useEffect(() => {
@@ -104,7 +120,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (!tenant?.primaryColor || typeof document === 'undefined') return;
     const rgb = hexToRgb(tenant.primaryColor);
     if (rgb) document.documentElement.style.setProperty('--brand', rgb);
-    return () => { document.documentElement.style.removeProperty('--brand'); };
+    return () => {
+      document.documentElement.style.removeProperty('--brand');
+    };
   }, [tenant?.primaryColor]);
 
   React.useEffect(() => {
@@ -116,36 +134,44 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [tenant],
   );
 
-  const value = React.useMemo<SessionValue>(() => ({
-    user, tenants, tenant, loading, language,
-    setLanguage: (next) => {
-      setLanguageState(next);
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
-    },
-    selectTenant: (id) => {
-      setTenantId(id);
-      localStorage.setItem(TENANT_STORAGE_KEY, id);
-    },
-    can: (permission) => permissions.has(permission),
-    hasModule: (module) => tenant?.modules.includes(module) ?? false,
-    login: async (email, password) => {
-      const result = await api<{ accessToken: string }>('/auth/login', {
-        method: 'POST', body: { email, password },
-      });
-      setAccessToken(result.accessToken);
-      await load();
-      router.replace('/');
-    },
-    logout: async () => {
-      await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
-      setAccessToken(null);
-      setUser(null);
-      setTenants([]);
-      setTenantId(null);
-      router.replace('/auth/login');
-    },
-    reload: load,
-  }), [user, tenants, tenant, loading, language, permissions, load, router]);
+  const value = React.useMemo<SessionValue>(
+    () => ({
+      user,
+      tenants,
+      tenant,
+      loading,
+      language,
+      setLanguage: (next) => {
+        setLanguageState(next);
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+      },
+      selectTenant: (id) => {
+        setTenantId(id);
+        localStorage.setItem(TENANT_STORAGE_KEY, id);
+      },
+      can: (permission) => permissions.has(permission),
+      hasModule: (module) => tenant?.modules.includes(module) ?? false,
+      login: async (email, password) => {
+        const result = await api<{ accessToken: string }>('/auth/login', {
+          method: 'POST',
+          body: { email, password },
+        });
+        setAccessToken(result.accessToken);
+        await load();
+        router.replace('/');
+      },
+      logout: async () => {
+        await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+        setAccessToken(null);
+        setUser(null);
+        setTenants([]);
+        setTenantId(null);
+        router.replace('/auth/login');
+      },
+      reload: load,
+    }),
+    [user, tenants, tenant, loading, language, permissions, load, router],
+  );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

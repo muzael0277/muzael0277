@@ -1,6 +1,11 @@
 import type {
-  CreatePaymentResult, PaymentProvider, PaymentStatusResult, ProviderContext,
-  PaymentSubject, RefundResult, WebhookOutcome,
+  CreatePaymentResult,
+  PaymentProvider,
+  PaymentStatusResult,
+  ProviderContext,
+  PaymentSubject,
+  RefundResult,
+  WebhookOutcome,
 } from '../provider';
 
 /**
@@ -15,7 +20,10 @@ export class CashProvider implements PaymentProvider {
   readonly capabilities = { refund: true, hold: false, webhook: false, redirect: false };
   readonly requiredCredentials = [] as const;
 
-  async createPayment(_ctx: ProviderContext, _subject: PaymentSubject): Promise<CreatePaymentResult> {
+  async createPayment(
+    _ctx: ProviderContext,
+    _subject: PaymentSubject,
+  ): Promise<CreatePaymentResult> {
     return {
       settledImmediately: false,
       instructions: {
@@ -33,7 +41,11 @@ export class CashProvider implements PaymentProvider {
 
   async cancelPayment(): Promise<void> {}
 
-  async refundPayment(_ctx: ProviderContext, _subject: PaymentSubject, amount: number): Promise<RefundResult> {
+  async refundPayment(
+    _ctx: ProviderContext,
+    _subject: PaymentSubject,
+    amount: number,
+  ): Promise<RefundResult> {
     // Recorded for the books; the money itself is handed back in person.
     return { refundedAmount: amount };
   }

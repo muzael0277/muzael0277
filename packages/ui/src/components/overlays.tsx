@@ -23,7 +23,15 @@ const MODAL_SIZES = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl' } as const
  * inside and the page behind stops scrolling. Each of those is a bug report waiting to
  * happen if left out.
  */
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+}: ModalProps) {
   const panelRef = React.useRef<HTMLDivElement>(null);
   const titleId = React.useId();
 
@@ -55,11 +63,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div
-        className="absolute inset-0 bg-black/40 animate-fade-in"
-        onClick={onClose}
-        aria-hidden
-      />
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         role="dialog"
@@ -73,7 +77,9 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 id={titleId} className="font-semibold text-content">{title}</h2>
+            <h2 id={titleId} className="font-semibold text-content">
+              {title}
+            </h2>
             {description && <p className="mt-0.5 text-sm text-content-muted">{description}</p>}
           </div>
           <button
@@ -88,7 +94,9 @@ export function Modal({ open, onClose, title, description, children, footer, siz
 
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
 
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
+        {footer && (
+          <div className="flex justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>
+        )}
       </div>
     </div>
   );
@@ -101,11 +109,25 @@ export function Modal({ open, onClose, title, description, children, footer, siz
  * product"), not a generic "OK" — people click OK reflexively.
  */
 export function ConfirmDialog({
-  open, onClose, onConfirm, title, message, confirmLabel, cancelLabel = 'Bekor qilish', loading, tone = 'danger',
+  open,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel,
+  cancelLabel = 'Bekor qilish',
+  loading,
+  tone = 'danger',
 }: {
-  open: boolean; onClose: () => void; onConfirm: () => void;
-  title: string; message: string; confirmLabel: string; cancelLabel?: string;
-  loading?: boolean; tone?: 'danger' | 'primary';
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  loading?: boolean;
+  tone?: 'danger' | 'primary';
 }) {
   return (
     <Modal
@@ -115,8 +137,12 @@ export function ConfirmDialog({
       size="sm"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>{cancelLabel}</Button>
-          <Button variant={tone} onClick={onConfirm} loading={loading}>{confirmLabel}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
+            {cancelLabel}
+          </Button>
+          <Button variant={tone} onClick={onConfirm} loading={loading}>
+            {confirmLabel}
+          </Button>
         </>
       }
     >
@@ -151,9 +177,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const id = nextId.current++;
     setToasts((current) => [...current, { id, tone, message }]);
     // Errors stay longer: they usually carry something the user needs to read.
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, tone === 'error' ? 6000 : 3500);
+    window.setTimeout(
+      () => {
+        setToasts((current) => current.filter((toast) => toast.id !== id));
+      },
+      tone === 'error' ? 6000 : 3500,
+    );
   }, []);
 
   const value = React.useMemo<ToastContextValue>(
@@ -200,14 +229,22 @@ export function useToast(): ToastContextValue {
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
 
-export function Tabs({ tabs, active, onChange, className }: {
+export function Tabs({
+  tabs,
+  active,
+  onChange,
+  className,
+}: {
   tabs: { key: string; label: React.ReactNode; count?: number }[];
   active: string;
   onChange: (key: string) => void;
   className?: string;
 }) {
   return (
-    <div className={cn('flex gap-1 overflow-x-auto border-b border-line', className)} role="tablist">
+    <div
+      className={cn('flex gap-1 overflow-x-auto border-b border-line', className)}
+      role="tablist"
+    >
       {tabs.map((tab) => {
         const selected = tab.key === active;
         return (
@@ -223,14 +260,18 @@ export function Tabs({ tabs, active, onChange, className }: {
           >
             {tab.label}
             {tab.count !== undefined && (
-              <span className={cn(
-                'ml-1.5 rounded-full px-1.5 py-0.5 text-xs tabular',
-                selected ? 'bg-brand-subtle text-brand' : 'bg-surface-sunken text-content-subtle',
-              )}>
+              <span
+                className={cn(
+                  'ml-1.5 rounded-full px-1.5 py-0.5 text-xs tabular',
+                  selected ? 'bg-brand-subtle text-brand' : 'bg-surface-sunken text-content-subtle',
+                )}
+              >
                 {tab.count}
               </span>
             )}
-            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand" />}
+            {selected && (
+              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand" />
+            )}
           </button>
         );
       })}

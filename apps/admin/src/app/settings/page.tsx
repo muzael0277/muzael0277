@@ -31,10 +31,16 @@ export default function SettingsPage() {
     fetcher,
   );
 
-  const { data: members } = useSWR<{ id: string; firstName: string; lastName: string | null; email: string; role: string; roleLabel: { uz: string; ru: string } }[]>(
-    tenant && can('member:read') ? [`/t/${tenant.id}/members`, tenant.id] : null,
-    fetcher,
-  );
+  const { data: members } = useSWR<
+    {
+      id: string;
+      firstName: string;
+      lastName: string | null;
+      email: string;
+      role: string;
+      roleLabel: { uz: string; ru: string };
+    }[]
+  >(tenant && can('member:read') ? [`/t/${tenant.id}/members`, tenant.id] : null, fetcher);
 
   async function toggle(module: ModuleRow) {
     setBusy(module.key);
@@ -50,7 +56,8 @@ export default function SettingsPage() {
       // The API returns an actionable code plus the modules involved, so the message
       // says *which* other module is in the way rather than "invalid data".
       if (caught instanceof ApiError) {
-        const details = caught.details as { requires?: string[]; dependents?: string[] } | undefined;
+        const details = caught.details as
+          { requires?: string[]; dependents?: string[] } | undefined;
         const names = (details?.requires ?? details?.dependents ?? [])
           .map((key) => MODULE_DEFINITIONS[key as ModuleKey])
           .filter(Boolean)
@@ -94,7 +101,9 @@ export default function SettingsPage() {
                 <div key={module.key} className="flex items-start justify-between gap-4 px-5 py-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{language === 'ru' ? module.label.ru : module.label.uz}</p>
+                      <p className="font-medium">
+                        {language === 'ru' ? module.label.ru : module.label.uz}
+                      </p>
                       {module.core && <Badge>Asosiy</Badge>}
                       {module.comingSoon && <Badge tone="info">Tez orada</Badge>}
                     </div>
@@ -103,15 +112,25 @@ export default function SettingsPage() {
                     </p>
                     {blocked && (
                       <p className="mt-1 text-xs text-warning">
-                        Avval kerak: {module.missingDependencies
-                          .map((key) => (language === 'ru' ? MODULE_DEFINITIONS[key]?.label.ru : MODULE_DEFINITIONS[key]?.label.uz))
+                        Avval kerak:{' '}
+                        {module.missingDependencies
+                          .map((key) =>
+                            language === 'ru'
+                              ? MODULE_DEFINITIONS[key]?.label.ru
+                              : MODULE_DEFINITIONS[key]?.label.uz,
+                          )
                           .join(', ')}
                       </p>
                     )}
                     {locked && (
                       <p className="mt-1 text-xs text-content-subtle">
-                        Bunga bog‘liq: {module.blockedBy
-                          .map((key) => (language === 'ru' ? MODULE_DEFINITIONS[key]?.label.ru : MODULE_DEFINITIONS[key]?.label.uz))
+                        Bunga bog‘liq:{' '}
+                        {module.blockedBy
+                          .map((key) =>
+                            language === 'ru'
+                              ? MODULE_DEFINITIONS[key]?.label.ru
+                              : MODULE_DEFINITIONS[key]?.label.uz,
+                          )
                           .join(', ')}
                       </p>
                     )}
@@ -135,12 +154,17 @@ export default function SettingsPage() {
 
       {tab === 'team' && (
         <Card>
-          <CardHeader title={t(language, 'nav.team')} description="Kim nimaga kira olishini boshqaring" />
+          <CardHeader
+            title={t(language, 'nav.team')}
+            description="Kim nimaga kira olishini boshqaring"
+          />
           <div className="divide-y divide-line">
             {(members ?? []).map((member) => (
               <div key={member.id} className="flex items-center justify-between gap-4 px-5 py-4">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{member.firstName} {member.lastName ?? ''}</p>
+                  <p className="truncate font-medium">
+                    {member.firstName} {member.lastName ?? ''}
+                  </p>
                   <p className="truncate text-sm text-content-muted">{member.email}</p>
                 </div>
                 <Badge tone={member.role === 'OWNER' ? 'brand' : 'neutral'}>

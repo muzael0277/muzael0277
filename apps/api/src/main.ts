@@ -26,23 +26,36 @@ async function bootstrap() {
 
   // Webhook signatures are computed over the exact bytes received, so the raw body must
   // survive JSON parsing. Reserialising it would change key order and break HMAC checks.
-  app.use(json({
-    limit: '2mb',
-    verify: (req, _res, buf) => { (req as { rawBody?: Buffer }).rawBody = Buffer.from(buf); },
-  }));
+  app.use(
+    json({
+      limit: '2mb',
+      verify: (req, _res, buf) => {
+        (req as { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
-  app.use(helmet({
-    // The Mini App is embedded in Telegram's webview, so a frame-ancestors policy of
-    // 'none' would break it outright.
-    contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
-    crossOriginEmbedderPolicy: false,
-  }));
+  app.use(
+    helmet({
+      // The Mini App is embedded in Telegram's webview, so a frame-ancestors policy of
+      // 'none' would break it outright.
+      contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   app.enableCors({
     origin: [env.ADMIN_URL, env.MINIAPP_URL, env.WEB_URL],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Request-Id', 'Idempotency-Key', 'If-Match'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Tenant-Id',
+      'X-Request-Id',
+      'Idempotency-Key',
+      'If-Match',
+    ],
     exposedHeaders: ['X-Request-Id'],
   });
 

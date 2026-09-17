@@ -1,21 +1,31 @@
 import { z } from 'zod';
 import { dateOnlySchema, idSchema } from './primitives';
 
-export const analyticsRangeSchema = z.object({
-  preset: z.enum(['today', 'yesterday', 'last7', 'last30', 'thisMonth', 'custom']).default('last30'),
-  dateFrom: dateOnlySchema.optional(),
-  dateTo: dateOnlySchema.optional(),
-  branchId: idSchema.optional(),
-}).superRefine((v, ctx) => {
-  if (v.preset === 'custom' && (!v.dateFrom || !v.dateTo)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['dateFrom'],
-      message: 'Custom range requires dateFrom and dateTo' });
-  }
-  if (v.dateFrom && v.dateTo && v.dateFrom > v.dateTo) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['dateTo'],
-      message: 'dateTo must be on or after dateFrom' });
-  }
-});
+export const analyticsRangeSchema = z
+  .object({
+    preset: z
+      .enum(['today', 'yesterday', 'last7', 'last30', 'thisMonth', 'custom'])
+      .default('last30'),
+    dateFrom: dateOnlySchema.optional(),
+    dateTo: dateOnlySchema.optional(),
+    branchId: idSchema.optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.preset === 'custom' && (!v.dateFrom || !v.dateTo)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dateFrom'],
+        message: 'Custom range requires dateFrom and dateTo',
+      });
+    }
+    if (v.dateFrom && v.dateTo && v.dateFrom > v.dateTo) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dateTo'],
+        message: 'dateTo must be on or after dateFrom',
+      });
+    }
+  });
 export type AnalyticsRange = z.infer<typeof analyticsRangeSchema>;
 
 export interface DashboardMetrics {

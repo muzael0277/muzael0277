@@ -49,7 +49,7 @@ modules/orders/
 └─ __tests__/
 ```
 
-**Rules.** A domain may import another domain's *service*, never its repository or Prisma
+**Rules.** A domain may import another domain's _service_, never its repository or Prisma
 models. Anything shared by three or more domains moves to `packages/shared`. Controllers
 never import `PrismaService`. Pure calculation (pricing, availability, loyalty accrual)
 lives in dependency-free classes so tests need no database.

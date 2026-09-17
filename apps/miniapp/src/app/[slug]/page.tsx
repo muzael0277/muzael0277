@@ -9,7 +9,15 @@ import { BottomNav } from '@/components/nav';
 
 interface CatalogResponse {
   categories: { id: string; name: string; imageUrl: string | null }[];
-  products: { id: string; name: string; price: number; oldPrice: number | null; image: string | null; isFeatured: boolean; isAvailable: boolean }[];
+  products: {
+    id: string;
+    name: string;
+    price: number;
+    oldPrice: number | null;
+    image: string | null;
+    isFeatured: boolean;
+    isAvailable: boolean;
+  }[];
 }
 
 export default function HomePage({ params }: { params: { slug: string } }) {
@@ -20,10 +28,9 @@ export default function HomePage({ params }: { params: { slug: string } }) {
     shopFetcher,
   );
 
-  const { data: services } = useSWR<{ id: string; name: string; price: number; durationMinutes: number }[]>(
-    data && hasModule('SERVICES') ? '/services' : null,
-    shopFetcher,
-  );
+  const { data: services } = useSWR<
+    { id: string; name: string; price: number; durationMinutes: number }[]
+  >(data && hasModule('SERVICES') ? '/services' : null, shopFetcher);
 
   if (!ready) {
     return (
@@ -92,7 +99,9 @@ export default function HomePage({ params }: { params: { slug: string } }) {
                 <p className="font-medium">Onlayn navbatga yozilish</p>
                 <p className="mt-0.5 text-sm text-content-muted">Bo‘sh vaqtni tanlang</p>
               </div>
-              <span className="text-brand" aria-hidden>→</span>
+              <span className="text-brand" aria-hidden>
+                →
+              </span>
             </Card>
           </Link>
         )}
@@ -118,7 +127,9 @@ export default function HomePage({ params }: { params: { slug: string } }) {
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-medium text-content-muted">Tavsiya etamiz</h2>
-              <Link href={`/${params.slug}/catalog`} className="text-sm text-brand">Barchasi</Link>
+              <Link href={`/${params.slug}/catalog`} className="text-sm text-brand">
+                Barchasi
+              </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {featured.map((product) => (
@@ -149,7 +160,9 @@ export default function HomePage({ params }: { params: { slug: string } }) {
                   <Card className="flex items-center justify-between p-3.5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{service.name}</p>
-                      <p className="text-xs text-content-subtle">{service.durationMinutes} daqiqa</p>
+                      <p className="text-xs text-content-subtle">
+                        {service.durationMinutes} daqiqa
+                      </p>
                     </div>
                     <span className="shrink-0 font-semibold tabular">{money(service.price)}</span>
                   </Card>

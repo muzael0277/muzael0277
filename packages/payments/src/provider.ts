@@ -109,7 +109,11 @@ export interface PaymentProvider {
   createPayment(ctx: ProviderContext, subject: PaymentSubject): Promise<CreatePaymentResult>;
   getPaymentStatus(ctx: ProviderContext, subject: PaymentSubject): Promise<PaymentStatusResult>;
   cancelPayment(ctx: ProviderContext, subject: PaymentSubject, reason: string): Promise<void>;
-  refundPayment(ctx: ProviderContext, subject: PaymentSubject, amount: number): Promise<RefundResult>;
+  refundPayment(
+    ctx: ProviderContext,
+    subject: PaymentSubject,
+    amount: number,
+  ): Promise<RefundResult>;
 
   /**
    * Verifies authenticity. Throws PaymentProviderError on a bad signature — never

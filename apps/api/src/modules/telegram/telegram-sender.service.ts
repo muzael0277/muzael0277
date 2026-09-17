@@ -25,7 +25,12 @@ export class TelegramSender {
     private readonly bots: TelegramBotService,
   ) {}
 
-  async sendToCustomer(tenantId: string, customerId: string, text: string, replyMarkup?: unknown): Promise<SendResult> {
+  async sendToCustomer(
+    tenantId: string,
+    customerId: string,
+    text: string,
+    replyMarkup?: unknown,
+  ): Promise<SendResult> {
     const customer = await this.prisma.system('sender-load-customer', () =>
       this.prisma.raw.customer.findUnique({
         where: { id: customerId },
@@ -51,7 +56,11 @@ export class TelegramSender {
           return { delivered: false, reason: 'BLOCKED' };
         }
         if (error.isRateLimited) {
-          return { delivered: false, reason: 'RATE_LIMITED', retryAfterSeconds: error.retryAfterSeconds };
+          return {
+            delivered: false,
+            reason: 'RATE_LIMITED',
+            retryAfterSeconds: error.retryAfterSeconds,
+          };
         }
       }
       logger.error({ err: error, tenantId, customerId }, 'Telegram send failed');

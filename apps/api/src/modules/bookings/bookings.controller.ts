@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  availabilityQuerySchema, createBookingSchema, listBookingsSchema, updateBookingStatusSchema,
+  availabilityQuerySchema,
+  createBookingSchema,
+  listBookingsSchema,
+  updateBookingStatusSchema,
 } from '@bizbot/contracts';
 import type { BookingStatus } from '@bizbot/database';
 import { zodBody, zodQuery } from '../../common/pipes/zod-validation.pipe';

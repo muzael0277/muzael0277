@@ -10,8 +10,13 @@ import { BottomNav } from '@/components/nav';
 import { haptic } from '@/lib/telegram';
 
 const TONE = {
-  PENDING: 'warning', CONFIRMED: 'info', ARRIVED: 'brand', IN_PROGRESS: 'brand',
-  COMPLETED: 'positive', CANCELLED: 'critical', NO_SHOW: 'critical',
+  PENDING: 'warning',
+  CONFIRMED: 'info',
+  ARRIVED: 'brand',
+  IN_PROGRESS: 'brand',
+  COMPLETED: 'positive',
+  CANCELLED: 'critical',
+  NO_SHOW: 'critical',
 } as const;
 
 export default function BookingsPage({ params }: { params: { slug: string } }) {
@@ -26,7 +31,8 @@ export default function BookingsPage({ params }: { params: { slug: string } }) {
   );
 
   const language = shop?.customer.language ?? 'uz';
-  const money = (value: number) => formatMoney(value, (shop?.tenant.currency ?? 'UZS') as never, language);
+  const money = (value: number) =>
+    formatMoney(value, (shop?.tenant.currency ?? 'UZS') as never, language);
 
   async function cancel() {
     if (!cancelling) return;
@@ -48,7 +54,9 @@ export default function BookingsPage({ params }: { params: { slug: string } }) {
   }
 
   const upcoming = (data?.data ?? []).filter(
-    (b) => new Date(b.startsAt) > new Date() && !['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(b.status),
+    (b) =>
+      new Date(b.startsAt) > new Date() &&
+      !['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(b.status),
   );
   const past = (data?.data ?? []).filter((b) => !upcoming.includes(b));
 
@@ -57,7 +65,11 @@ export default function BookingsPage({ params }: { params: { slug: string } }) {
       <h1 className="mb-3 text-lg font-semibold">Bronlarim</h1>
 
       {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-28" />)}</div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
       ) : (data?.data.length ?? 0) === 0 ? (
         <EmptyState title={t(language, 'empty.bookings')} />
       ) : (
@@ -84,7 +96,12 @@ export default function BookingsPage({ params }: { params: { slug: string } }) {
               <p className="mb-2 text-sm font-medium text-content-muted">O‘tgan</p>
               <div className="space-y-2 opacity-70">
                 {past.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} language={language} money={money} />
+                  <BookingCard
+                    key={booking.id}
+                    booking={booking}
+                    language={language}
+                    money={money}
+                  />
                 ))}
               </div>
             </section>
@@ -109,10 +126,15 @@ export default function BookingsPage({ params }: { params: { slug: string } }) {
 }
 
 function BookingCard({
-  booking, language, money, onCancel,
+  booking,
+  language,
+  money,
+  onCancel,
 }: {
-  booking: Booking; language: 'uz' | 'ru' | 'en';
-  money: (value: number) => string; onCancel?: () => void;
+  booking: Booking;
+  language: 'uz' | 'ru' | 'en';
+  money: (value: number) => string;
+  onCancel?: () => void;
 }) {
   const start = new Date(booking.startsAt);
   return (
@@ -124,7 +146,10 @@ function BookingCard({
           </p>
           <p className="mt-0.5 text-sm text-content-muted tabular">
             {start.toLocaleString('ru-RU', {
-              day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
             })}
           </p>
           {booking.resource && (
@@ -139,7 +164,9 @@ function BookingCard({
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
         <span className="font-semibold tabular">{money(booking.priceSnapshot)}</span>
         {onCancel && (
-          <Button variant="ghost" size="sm" onClick={onCancel}>Bekor qilish</Button>
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Bekor qilish
+          </Button>
         )}
       </div>
     </Card>
@@ -147,7 +174,11 @@ function BookingCard({
 }
 
 interface Booking {
-  id: string; bookingNumber: string; status: string; startsAt: string; priceSnapshot: number;
+  id: string;
+  bookingNumber: string;
+  status: string;
+  startsAt: string;
+  priceSnapshot: number;
   service?: { name: Record<string, string> } | null;
   resource?: { name: string } | null;
 }

@@ -5,10 +5,10 @@
 Every tenant connects **its own** bot (`@AnorCafeBot`, `@BarberHouseBot`). Customers
 must feel they are talking to the business, not to a platform. Consequences:
 
-* Bot tokens are tenant data, stored **encrypted** (AES-256-GCM via `SecretVault`),
+- Bot tokens are tenant data, stored **encrypted** (AES-256-GCM via `SecretVault`),
   never returned to any client — the admin UI shows `••••••:AAH…xyz`.
-* Webhook routing must resolve *which tenant* before any business logic runs.
-* Rate limits are per bot; queue keys include the bot id.
+- Webhook routing must resolve _which tenant_ before any business logic runs.
+- Rate limits are per bot; queue keys include the bot id.
 
 ## 2. Webhook routing
 

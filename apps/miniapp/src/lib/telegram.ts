@@ -11,7 +11,10 @@
 
 export interface TelegramWebApp {
   initData: string;
-  initDataUnsafe?: { user?: { id: number; first_name: string; language_code?: string }; start_param?: string };
+  initDataUnsafe?: {
+    user?: { id: number; first_name: string; language_code?: string };
+    start_param?: string;
+  };
   colorScheme: 'light' | 'dark';
   themeParams: Record<string, string>;
   viewportStableHeight: number;

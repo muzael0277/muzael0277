@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@bizbot/database';
-import {
-  DomainError, ErrorCode, normalizePageParams, paginate, toSkipTake,
-} from '@bizbot/shared';
+import { DomainError, ErrorCode, normalizePageParams, paginate, toSkipTake } from '@bizbot/shared';
 import { PrismaService } from '../../infra/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { compileSegmentFilter, type SegmentFilter } from './segment-compiler';
@@ -54,8 +52,15 @@ export class CustomersService {
       Object.assign(where, compileSegmentFilter(segment.filter as SegmentFilter));
     }
 
-    const sortBy = ['createdAt', 'lastActivityAt', 'totalSpent', 'orderCount', 'firstName']
-      .includes(String(query.sortBy)) ? String(query.sortBy) : 'lastActivityAt';
+    const sortBy = [
+      'createdAt',
+      'lastActivityAt',
+      'totalSpent',
+      'orderCount',
+      'firstName',
+    ].includes(String(query.sortBy))
+      ? String(query.sortBy)
+      : 'lastActivityAt';
 
     const [items, total] = await Promise.all([
       this.prisma.client.customer.findMany({
@@ -89,17 +94,29 @@ export class CustomersService {
 
     const [orders, bookings, loyaltyTx] = await Promise.all([
       this.prisma.client.order.findMany({
-        where: { customerId: id }, orderBy: { createdAt: 'desc' }, take: 10,
-        select: { id: true, orderNumber: true, status: true, total: true, createdAt: true, paymentStatus: true },
+        where: { customerId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          total: true,
+          createdAt: true,
+          paymentStatus: true,
+        },
       }),
       this.prisma.client.booking.findMany({
-        where: { customerId: id }, orderBy: { startsAt: 'desc' }, take: 10,
+        where: { customerId: id },
+        orderBy: { startsAt: 'desc' },
+        take: 10,
         include: { service: { select: { name: true } }, resource: { select: { name: true } } },
       }),
       customer.loyaltyAccount
         ? this.prisma.client.loyaltyTransaction.findMany({
             where: { accountId: customer.loyaltyAccount.id },
-            orderBy: { createdAt: 'desc' }, take: 20,
+            orderBy: { createdAt: 'desc' },
+            take: 20,
           })
         : Promise.resolve([]),
     ]);
@@ -119,7 +136,9 @@ export class CustomersService {
     const page = normalizePageParams(query);
     const [items, total] = await Promise.all([
       this.prisma.client.customerTimelineEntry.findMany({
-        where: { customerId }, orderBy: { occurredAt: 'desc' }, ...toSkipTake(page),
+        where: { customerId },
+        orderBy: { occurredAt: 'desc' },
+        ...toSkipTake(page),
       }),
       this.prisma.client.customerTimelineEntry.count({ where: { customerId } }),
     ]);
@@ -152,7 +171,10 @@ export class CustomersService {
     });
 
     await this.audit.record({
-      actorUserId, action: 'customer.created', entityType: 'CUSTOMER', entityId: customer.id,
+      actorUserId,
+      action: 'customer.created',
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
     });
     return this.detail(customer.id);
   }
@@ -193,7 +215,8 @@ export class CustomersService {
     });
     await this.prisma.client.customerTimelineEntry.create({
       data: {
-        customerId, type: 'NOTE_ADDED',
+        customerId,
+        type: 'NOTE_ADDED',
         title: { uz: 'Izoh qo‘shildi', ru: 'Добавлена заметка' } as never,
         body: { uz: body.slice(0, 200) } as never,
       } as never,
@@ -228,8 +251,11 @@ export class CustomersService {
 
   /** Upserts the customer behind a Telegram identity. Called on every bot interaction. */
   async upsertFromTelegram(input: {
-    telegramUserId: bigint; firstName: string; lastName?: string;
-    username?: string; languageCode?: string;
+    telegramUserId: bigint;
+    firstName: string;
+    lastName?: string;
+    username?: string;
+    languageCode?: string;
   }) {
     const existing = await this.prisma.client.customer.findFirst({
       where: { telegramUserId: input.telegramUserId },

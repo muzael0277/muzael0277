@@ -60,7 +60,9 @@ export function verifyInitData(
   // The data-check string is every field except `hash`, sorted by key, joined with \n.
   // Sorting matters: Telegram signs a canonical form, so any other order fails.
   const pairs: string[] = [];
-  for (const [key, value] of [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+  for (const [key, value] of [...params.entries()].sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  )) {
     if (key === 'hash') continue;
     pairs.push(`${key}=${value}`);
   }
@@ -116,10 +118,7 @@ function constantTimeEquals(a: string, b: string): boolean {
  * Exported deliberately: without it, every test of the verifier would have to hand-craft
  * HMACs, and tests that are painful to write do not get written.
  */
-export function signInitData(
-  fields: Record<string, string>,
-  botToken: string,
-): string {
+export function signInitData(fields: Record<string, string>, botToken: string): string {
   const entries = Object.entries(fields).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join('\n');
   const secretKey = createHmac('sha256', WEBAPP_CONSTANT).update(botToken).digest();

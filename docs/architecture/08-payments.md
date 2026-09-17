@@ -8,12 +8,12 @@ Click and Payme must not be `if` branches inside order code. Every provider impl
 interface PaymentProvider {
   readonly key: PaymentProviderKey;
   readonly capabilities: { refund: boolean; hold: boolean; webhook: boolean };
-  createPayment(ctx, input): Promise<CreatePaymentResult>;   // → checkout url / instructions
+  createPayment(ctx, input): Promise<CreatePaymentResult>; // → checkout url / instructions
   getPaymentStatus(ctx, payment): Promise<PaymentStatus>;
   cancelPayment(ctx, payment, reason): Promise<void>;
   refundPayment(ctx, payment, amount): Promise<RefundResult>;
-  verifyWebhook(ctx, req): Promise<WebhookVerification>;     // signature/auth — throws on bad
-  handleWebhook(ctx, req): Promise<WebhookOutcome>;          // → normalized intent
+  verifyWebhook(ctx, req): Promise<WebhookVerification>; // signature/auth — throws on bad
+  handleWebhook(ctx, req): Promise<WebhookOutcome>; // → normalized intent
 }
 ```
 
@@ -53,7 +53,7 @@ POST /v1/payments/webhook/:provider/:integrationId
 ```
 
 `payment.succeeded` is what credits loyalty and notifies the customer — and because it is
-only emitted on a *real* transition, a replay cannot double-credit bonuses or complete an
+only emitted on a _real_ transition, a replay cannot double-credit bonuses or complete an
 order twice.
 
 Payme's JSON-RPC merchant protocol (`CheckPerformTransaction`, `CreateTransaction`,

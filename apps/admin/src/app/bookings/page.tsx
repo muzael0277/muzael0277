@@ -2,7 +2,18 @@
 
 import * as React from 'react';
 import useSWR from 'swr';
-import { Badge, Button, Card, DataTable, EmptyState, Input, Pagination, Select, Tabs, useToast } from '@bizbot/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  Input,
+  Pagination,
+  Select,
+  Tabs,
+  useToast,
+} from '@bizbot/ui';
 import { t } from '@bizbot/i18n';
 import { AppShell, PageHeader } from '@/components/shell';
 import { useSession } from '@/lib/session';
@@ -10,16 +21,31 @@ import { api, ApiError, fetcher } from '@/lib/api';
 import { money, dateTime, phone, BOOKING_STATUS_TONE } from '@/lib/format';
 
 interface Booking {
-  id: string; bookingNumber: string; status: string; startsAt: string; endsAt: string;
-  durationMinutes: number; priceSnapshot: number;
-  customer?: { id: string; firstName: string; lastName: string | null; phone: string | null } | null;
+  id: string;
+  bookingNumber: string;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  durationMinutes: number;
+  priceSnapshot: number;
+  customer?: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+  } | null;
   service?: { id: string; name: Record<string, string> } | null;
   resource?: { id: string; name: string } | null;
 }
 
 const NEXT_STATUS: Record<string, string | null> = {
-  PENDING: 'CONFIRMED', CONFIRMED: 'ARRIVED', ARRIVED: 'IN_PROGRESS',
-  IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELLED: null, NO_SHOW: null,
+  PENDING: 'CONFIRMED',
+  CONFIRMED: 'ARRIVED',
+  ARRIVED: 'IN_PROGRESS',
+  IN_PROGRESS: 'COMPLETED',
+  COMPLETED: null,
+  CANCELLED: null,
+  NO_SHOW: null,
 };
 
 export default function BookingsPage() {
@@ -30,24 +56,34 @@ export default function BookingsPage() {
   const [page, setPage] = React.useState(1);
   const [busy, setBusy] = React.useState<string | null>(null);
 
-  const query = new URLSearchParams({ page: String(page), pageSize: '20', sortBy: 'startsAt', sortOrder: 'asc' });
+  const query = new URLSearchParams({
+    page: String(page),
+    pageSize: '20',
+    sortBy: 'startsAt',
+    sortOrder: 'asc',
+  });
   const today = new Date().toISOString().slice(0, 10);
 
   if (status === 'upcoming') query.set('dateFrom', today);
-  else if (status === 'today') { query.set('dateFrom', today); query.set('dateTo', today); }
-  else if (status !== 'all') query.set('status', status);
+  else if (status === 'today') {
+    query.set('dateFrom', today);
+    query.set('dateTo', today);
+  } else if (status !== 'all') query.set('status', status);
 
-  const { data, isLoading, mutate } = useSWR<{ data: Booking[]; meta: { total: number; totalPages: number } }>(
-    tenant ? [`/t/${tenant.id}/bookings?${query}`, tenant.id] : null,
-    fetcher,
-    { refreshInterval: 30_000 },
-  );
+  const { data, isLoading, mutate } = useSWR<{
+    data: Booking[];
+    meta: { total: number; totalPages: number };
+  }>(tenant ? [`/t/${tenant.id}/bookings?${query}`, tenant.id] : null, fetcher, {
+    refreshInterval: 30_000,
+  });
 
   async function changeStatus(id: string, next: string) {
     setBusy(id);
     try {
       await api(`/t/${tenant!.id}/bookings/${id}/status`, {
-        method: 'PATCH', body: { status: next }, tenantId: tenant!.id,
+        method: 'PATCH',
+        body: { status: next },
+        tenantId: tenant!.id,
       });
       toast.success(t(language, `booking.statuses.${next}`));
       await mutate();
@@ -68,7 +104,10 @@ export default function BookingsPage() {
       <Card>
         <Tabs
           active={status}
-          onChange={(key) => { setStatus(key); setPage(1); }}
+          onChange={(key) => {
+            setStatus(key);
+            setPage(1);
+          }}
           tabs={[
             { key: 'upcoming', label: 'Kelgusi' },
             { key: 'today', label: t(language, 'common.today') },
@@ -86,45 +125,70 @@ export default function BookingsPage() {
           empty={<EmptyState title={t(language, 'empty.bookings')} />}
           columns={[
             {
-              key: 'time', header: t(language, 'booking.time'),
+              key: 'time',
+              header: t(language, 'booking.time'),
               render: (row) => (
                 <div>
-                  <p className="font-medium tabular">{dateTime(row.startsAt, tenant?.slug ? undefined : undefined)}</p>
-                  <p className="text-xs text-content-subtle tabular">{row.durationMinutes} daqiqa</p>
+                  <p className="font-medium tabular">
+                    {dateTime(row.startsAt, tenant?.slug ? undefined : undefined)}
+                  </p>
+                  <p className="text-xs text-content-subtle tabular">
+                    {row.durationMinutes} daqiqa
+                  </p>
                 </div>
               ),
             },
             {
-              key: 'customer', header: t(language, 'order.customer'),
+              key: 'customer',
+              header: t(language, 'order.customer'),
               render: (row) => (
                 <div className="min-w-0">
-                  <p className="truncate">{row.customer ? `${row.customer.firstName} ${row.customer.lastName ?? ''}` : '—'}</p>
-                  <p className="truncate text-xs text-content-subtle">{phone(row.customer?.phone)}</p>
+                  <p className="truncate">
+                    {row.customer
+                      ? `${row.customer.firstName} ${row.customer.lastName ?? ''}`
+                      : '—'}
+                  </p>
+                  <p className="truncate text-xs text-content-subtle">
+                    {phone(row.customer?.phone)}
+                  </p>
                 </div>
               ),
             },
             {
-              key: 'service', header: t(language, 'booking.service'),
+              key: 'service',
+              header: t(language, 'booking.service'),
               render: (row) => row.service?.name?.[language] ?? row.service?.name?.uz ?? '—',
             },
             {
-              key: 'resource', header: t(language, 'booking.employee'), secondary: true,
+              key: 'resource',
+              header: t(language, 'booking.employee'),
+              secondary: true,
               render: (row) => row.resource?.name ?? '—',
             },
             {
-              key: 'status', header: t(language, 'order.status'),
+              key: 'status',
+              header: t(language, 'order.status'),
               render: (row) => (
-                <Badge tone={BOOKING_STATUS_TONE[row.status as keyof typeof BOOKING_STATUS_TONE] ?? 'neutral'}>
+                <Badge
+                  tone={
+                    BOOKING_STATUS_TONE[row.status as keyof typeof BOOKING_STATUS_TONE] ?? 'neutral'
+                  }
+                >
                   {t(language, `booking.statuses.${row.status}`)}
                 </Badge>
               ),
             },
             {
-              key: 'price', header: 'Narx', align: 'right', secondary: true,
+              key: 'price',
+              header: 'Narx',
+              align: 'right',
+              secondary: true,
               render: (row) => money(row.priceSnapshot, 'UZS', language),
             },
             {
-              key: 'action', header: '', align: 'right',
+              key: 'action',
+              header: '',
+              align: 'right',
               render: (row) => {
                 const next = NEXT_STATUS[row.status];
                 if (!next || !can('booking:write')) return null;

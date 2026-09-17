@@ -18,10 +18,7 @@ export class IntegrationsController {
   /** Owner-only: this is the endpoint that accepts payment credentials. */
   @Post()
   @RequirePermission('integration:write')
-  upsert(
-    @CurrentActor() actor: RequestActor,
-    @Body(zodBody(upsertIntegrationSchema)) dto: never,
-  ) {
+  upsert(@CurrentActor() actor: RequestActor, @Body(zodBody(upsertIntegrationSchema)) dto: never) {
     return this.integrations.upsert(actor.userId!, dto);
   }
 

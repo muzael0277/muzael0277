@@ -38,14 +38,14 @@ needs**, never whole entities — an entity shape change must not break a consum
 
 ## 3. Consumers
 
-| Consumer | Reacts to | Does |
-|---|---|---|
-| `TimelineProjector` | most | appends `CustomerTimelineEntry` |
-| `NotificationDispatcher` | order/booking/payment/loyalty | renders a template, queues a Telegram send |
-| `LoyaltyAccrual` | `order.completed` | credits cashback (ledger + balance, one tx) |
-| `AnalyticsRollup` | order/booking/payment | updates daily aggregates |
-| `WebhookDispatcher` (Phase 3) | subscribed events | signed POST + retries |
-| `AutomationEngine` (Phase 4) | all | matches triggers → conditions → actions |
+| Consumer                      | Reacts to                     | Does                                        |
+| ----------------------------- | ----------------------------- | ------------------------------------------- |
+| `TimelineProjector`           | most                          | appends `CustomerTimelineEntry`             |
+| `NotificationDispatcher`      | order/booking/payment/loyalty | renders a template, queues a Telegram send  |
+| `LoyaltyAccrual`              | `order.completed`             | credits cashback (ledger + balance, one tx) |
+| `AnalyticsRollup`             | order/booking/payment         | updates daily aggregates                    |
+| `WebhookDispatcher` (Phase 3) | subscribed events             | signed POST + retries                       |
+| `AutomationEngine` (Phase 4)  | all                           | matches triggers → conditions → actions     |
 
 Handlers must be **idempotent** — they key on `(eventId, handlerName)` in
 `EventHandlerRun`, because at-least-once delivery is the only honest guarantee.

@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
 import type {
-  CreatePaymentResult, PaymentProvider, PaymentStatusResult, ProviderContext,
-  PaymentSubject, RefundResult, WebhookOutcome, WebhookRequest,
+  CreatePaymentResult,
+  PaymentProvider,
+  PaymentStatusResult,
+  ProviderContext,
+  PaymentSubject,
+  RefundResult,
+  WebhookOutcome,
+  WebhookRequest,
 } from '../provider';
 import { PaymentProviderError } from '../provider';
 
@@ -45,7 +51,12 @@ interface ClickCallback {
 export class ClickProvider implements PaymentProvider {
   readonly key = 'click' as const;
   readonly capabilities = { refund: false, hold: true, webhook: true, redirect: true };
-  readonly requiredCredentials = ['serviceId', 'merchantId', 'secretKey', 'merchantUserId'] as const;
+  readonly requiredCredentials = [
+    'serviceId',
+    'merchantId',
+    'secretKey',
+    'merchantUserId',
+  ] as const;
 
   async createPayment(ctx: ProviderContext, subject: PaymentSubject): Promise<CreatePaymentResult> {
     const serviceId = this.credential(ctx, 'serviceId');
@@ -72,7 +83,11 @@ export class ClickProvider implements PaymentProvider {
   async cancelPayment(): Promise<void> {}
 
   async refundPayment(): Promise<RefundResult> {
-    throw new PaymentProviderError('click', 'NOT_SUPPORTED', 'Click refunds are processed in the merchant cabinet');
+    throw new PaymentProviderError(
+      'click',
+      'NOT_SUPPORTED',
+      'Click refunds are processed in the merchant cabinet',
+    );
   }
 
   async verifyWebhook(ctx: ProviderContext, request: WebhookRequest): Promise<void> {
@@ -112,7 +127,11 @@ export class ClickProvider implements PaymentProvider {
       return {
         idempotencyKey: `click:${body.click_trans_id}:${body.action}`,
         paymentId,
-        intent: { kind: 'mark_cancelled', externalId: body.click_trans_id, reason: body.error_note ?? 'Cancelled by Click' },
+        intent: {
+          kind: 'mark_cancelled',
+          externalId: body.click_trans_id,
+          reason: body.error_note ?? 'Cancelled by Click',
+        },
         response: {
           click_trans_id: body.click_trans_id,
           merchant_trans_id: paymentId,
@@ -165,7 +184,11 @@ export class ClickProvider implements PaymentProvider {
   private credential(ctx: ProviderContext, key: string): string {
     const value = ctx.credentials[key];
     if (!value) {
-      throw new PaymentProviderError('click', 'MISSING_CREDENTIAL', `Click integration is missing "${key}"`);
+      throw new PaymentProviderError(
+        'click',
+        'MISSING_CREDENTIAL',
+        `Click integration is missing "${key}"`,
+      );
     }
     return value;
   }

@@ -32,7 +32,10 @@ export class EventDispatcher implements OnModuleInit {
 
   register(handler: EventHandler): void {
     this.handlers.push(handler);
-    logger.debug({ handler: handler.name, events: handler.subscribesTo }, 'Event handler registered');
+    logger.debug(
+      { handler: handler.name, events: handler.subscribesTo },
+      'Event handler registered',
+    );
   }
 
   onModuleInit() {
@@ -84,9 +87,15 @@ export class EventDispatcher implements OnModuleInit {
   }
 
   private async process(row: {
-    id: string; tenantId: string; type: string; version: number;
-    aggregateType: string; aggregateId: string; payload: unknown;
-    occurredAt: Date; attempts: number;
+    id: string;
+    tenantId: string;
+    type: string;
+    version: number;
+    aggregateType: string;
+    aggregateId: string;
+    payload: unknown;
+    occurredAt: Date;
+    attempts: number;
   }): Promise<void> {
     const event: EmittedEvent = {
       id: row.id,

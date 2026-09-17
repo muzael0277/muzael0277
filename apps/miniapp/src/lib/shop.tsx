@@ -9,7 +9,11 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
 let token: string | null = null;
 
 export class ShopError extends Error {
-  constructor(readonly code: string, message: string, readonly details?: Record<string, unknown>) {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly details?: Record<string, unknown>,
+  ) {
     super(message);
   }
 }
@@ -42,14 +46,32 @@ export const shopFetcher = <T,>(path: string): Promise<T> => shopApi<T>(path);
 
 export interface Bootstrap {
   tenant: {
-    id: string; name: string; slug: string; logoUrl: string | null; primaryColor: string;
-    currency: string; templateKey: string; description: string; phone: string | null;
-    delivery: { enabled?: boolean; flatFee?: number; freeAbove?: number | null; minOrderTotal?: number };
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    primaryColor: string;
+    currency: string;
+    templateKey: string;
+    description: string;
+    phone: string | null;
+    delivery: {
+      enabled?: boolean;
+      flatFee?: number;
+      freeAbove?: number | null;
+      minOrderTotal?: number;
+    };
     loyalty: { enabled?: boolean; rate?: number };
   };
   customer: {
-    id: string; firstName: string; lastName: string | null; phone: string | null;
-    language: Language; loyaltyBalance: number; orderCount: number; bookingCount: number;
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+    language: Language;
+    loyaltyBalance: number;
+    orderCount: number;
+    bookingCount: number;
     addresses: { id: string; label: string | null; line1: string; landmark: string | null }[];
   };
   modules: string[];
@@ -68,7 +90,13 @@ interface ShopValue {
 
 const ShopContext = React.createContext<ShopValue | null>(null);
 
-export function ShopProvider({ tenantSlug, children }: { tenantSlug: string; children: React.ReactNode }) {
+export function ShopProvider({
+  tenantSlug,
+  children,
+}: {
+  tenantSlug: string;
+  children: React.ReactNode;
+}) {
   const [data, setData] = React.useState<Bootstrap | null>(null);
   const [ready, setReady] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -87,7 +115,10 @@ export function ShopProvider({ tenantSlug, children }: { tenantSlug: string; chi
       if (!isInsideTelegram()) {
         // Opened outside Telegram. Say so plainly rather than showing a broken shell —
         // this is also how the app is demonstrated and developed.
-        if (!cancelled) { setPreview(true); setReady(true); }
+        if (!cancelled) {
+          setPreview(true);
+          setReady(true);
+        }
         return;
       }
 
@@ -107,7 +138,9 @@ export function ShopProvider({ tenantSlug, children }: { tenantSlug: string; chi
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [tenantSlug, load]);
 
   // The business's brand colour drives the whole app, so the customer feels they are in
@@ -124,12 +157,18 @@ export function ShopProvider({ tenantSlug, children }: { tenantSlug: string; chi
     }
   }, [data?.tenant.primaryColor]);
 
-  const value = React.useMemo<ShopValue>(() => ({
-    ready, error, data, preview,
-    language: data?.customer.language ?? 'uz',
-    hasModule: (module) => data?.modules.includes(module) ?? false,
-    refresh: load,
-  }), [ready, error, data, preview, load]);
+  const value = React.useMemo<ShopValue>(
+    () => ({
+      ready,
+      error,
+      data,
+      preview,
+      language: data?.customer.language ?? 'uz',
+      hasModule: (module) => data?.modules.includes(module) ?? false,
+      refresh: load,
+    }),
+    [ready, error, data, preview, load],
+  );
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }

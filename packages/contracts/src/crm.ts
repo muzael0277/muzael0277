@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import {
-  idSchema, phoneSchema, emailSchema, languageSchema, paginationSchema,
-  dateOnlySchema, customFieldsSchema,
+  idSchema,
+  phoneSchema,
+  emailSchema,
+  languageSchema,
+  paginationSchema,
+  dateOnlySchema,
+  customFieldsSchema,
 } from './primitives';
 
 export const createCustomerSchema = z.object({
@@ -26,13 +31,18 @@ export const listCustomersSchema = paginationSchema.extend({
   hasOrders: z.coerce.boolean().optional(),
   createdFrom: dateOnlySchema.optional(),
   createdTo: dateOnlySchema.optional(),
-  sortBy: z.enum(['createdAt', 'lastActivityAt', 'totalSpent', 'orderCount', 'firstName']).default('lastActivityAt'),
+  sortBy: z
+    .enum(['createdAt', 'lastActivityAt', 'totalSpent', 'orderCount', 'firstName'])
+    .default('lastActivityAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export const createTagSchema = z.object({
   name: z.string().trim().min(1).max(32),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#6366F1'),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#6366F1'),
 });
 
 export const createNoteSchema = z.object({
@@ -50,11 +60,35 @@ export const segmentFilterSchema: z.ZodType<SegmentFilter> = z.lazy(() =>
     z.object({ any: z.array(segmentFilterSchema).min(1).max(10) }),
     z.object({
       field: z.enum([
-        'totalSpent', 'orderCount', 'bookingCount', 'loyaltyBalance',
-        'lastActivityAt', 'createdAt', 'birthDate', 'language', 'source', 'tag',
+        'totalSpent',
+        'orderCount',
+        'bookingCount',
+        'loyaltyBalance',
+        'lastActivityAt',
+        'createdAt',
+        'birthDate',
+        'language',
+        'source',
+        'tag',
       ]),
-      op: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'daysAgoGt', 'daysAgoLt', 'monthDayEq']),
-      value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
+      op: z.enum([
+        'eq',
+        'neq',
+        'gt',
+        'gte',
+        'lt',
+        'lte',
+        'in',
+        'daysAgoGt',
+        'daysAgoLt',
+        'monthDayEq',
+      ]),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.array(z.union([z.string(), z.number()])),
+      ]),
     }),
   ]),
 );
@@ -65,14 +99,26 @@ export type SegmentFilter =
   | { field: string; op: string; value: string | number | boolean | (string | number)[] };
 
 export const createSegmentSchema = z.object({
-  key: z.string().trim().min(2).max(64).regex(/^[a-z0-9_]+$/),
-  name: z.object({ uz: z.string().max(64), ru: z.string().max(64).optional(), en: z.string().max(64).optional() }),
+  key: z
+    .string()
+    .trim()
+    .min(2)
+    .max(64)
+    .regex(/^[a-z0-9_]+$/),
+  name: z.object({
+    uz: z.string().max(64),
+    ru: z.string().max(64).optional(),
+    en: z.string().max(64).optional(),
+  }),
   filter: segmentFilterSchema,
 });
 
 export const sendMessageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
-  attachments: z.array(z.object({ type: z.enum(['image', 'file']), url: z.string().url() })).max(5).optional(),
+  attachments: z
+    .array(z.object({ type: z.enum(['image', 'file']), url: z.string().url() }))
+    .max(5)
+    .optional(),
 });
 
 export const listConversationsSchema = paginationSchema.extend({

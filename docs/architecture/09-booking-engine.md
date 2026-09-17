@@ -64,6 +64,7 @@ Why a lock row rather than `SERIALIZABLE`: it takes a narrow, predictable lock
 (one resource, one day) instead of forcing application-wide retry logic on serialization
 failures, and it keeps two barbers independent. A `CHECK` + GiST exclusion constraint on
 `tstzrange` is the belt to this braces and is added in the same migration where capacity
+
 > 1 is enabled (capacity makes a plain exclusion constraint insufficient).
 
 `booking-collision.spec.ts` fires N concurrent requests at one slot and asserts exactly

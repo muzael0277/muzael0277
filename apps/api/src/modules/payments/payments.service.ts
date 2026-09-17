@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import {
-  getProvider, providerForMethod, PaymentProviderError,
-  type NormalizedIntent, type PaymentProviderKey, type ProviderContext, type WebhookRequest,
+  getProvider,
+  providerForMethod,
+  PaymentProviderError,
+  type NormalizedIntent,
+  type PaymentProviderKey,
+  type ProviderContext,
+  type WebhookRequest,
 } from '@bizbot/payments';
 import type { GuardedTransactionClient, PaymentState, Prisma } from '@bizbot/database';
 import { DomainError, ErrorCode } from '@bizbot/shared';
@@ -42,9 +47,14 @@ export class PaymentsService {
     private readonly audit: AuditService,
   ) {}
 
-  async createForOrder(orderId: string, method: string, options: { returnUrl?: string; language?: 'uz' | 'ru' | 'en' } = {}) {
+  async createForOrder(
+    orderId: string,
+    method: string,
+    options: { returnUrl?: string; language?: 'uz' | 'ru' | 'en' } = {},
+  ) {
     const order = await this.prisma.client.order.findFirstOrThrow({
-      where: { id: orderId }, include: { customer: true },
+      where: { id: orderId },
+      include: { customer: true },
     });
 
     if (order.paymentStatus === 'PAID') {
@@ -88,8 +98,10 @@ export class PaymentsService {
 
     if (result.settledImmediately) {
       await this.applyIntent(payment.id, {
-        kind: 'mark_paid', externalId: result.externalId ?? payment.id,
-        amount: order.total, paidAt: new Date(),
+        kind: 'mark_paid',
+        externalId: result.externalId ?? payment.id,
+        amount: order.total,
+        paidAt: new Date(),
       });
     }
 
@@ -135,8 +147,12 @@ export class PaymentsService {
       await this.audit.record({
         tenantId: integration.tenantId,
         action: 'payment.webhook_signature_invalid',
-        entityType: 'INTEGRATION', entityId: integration.id,
-        after: { provider: providerKey, reason: error instanceof PaymentProviderError ? error.code : 'UNKNOWN' },
+        entityType: 'INTEGRATION',
+        entityId: integration.id,
+        after: {
+          provider: providerKey,
+          reason: error instanceof PaymentProviderError ? error.code : 'UNKNOWN',
+        },
       });
       logger.warn({ provider: providerKey, integrationId }, 'Payment webhook signature rejected');
       return { status: 401, body: { error: 'Invalid signature' } };
@@ -164,7 +180,12 @@ export class PaymentsService {
     // the transaction.
     try {
       await this.applyIntentWithDedup(
-        { source: providerKey, key: dedupKey, tenantId: integration.tenantId, response: outcome.response },
+        {
+          source: providerKey,
+          key: dedupKey,
+          tenantId: integration.tenantId,
+          response: outcome.response,
+        },
         outcome.paymentId,
         outcome.intent,
       );
@@ -195,7 +216,9 @@ export class PaymentsService {
       this.prisma.client.$transaction(async (tx) => {
         await tx.processedWebhook.create({
           data: {
-            source: dedup.source, key: dedup.key, tenantId: dedup.tenantId,
+            source: dedup.source,
+            key: dedup.key,
+            tenantId: dedup.tenantId,
             response: dedup.response as Prisma.InputJsonValue,
           },
         });
@@ -217,7 +240,9 @@ export class PaymentsService {
     const tenantId = tenantIdOverride;
 
     const run = async () => {
-      await this.prisma.client.$transaction((tx) => this.applyIntentInTransaction(tx, paymentId, intent));
+      await this.prisma.client.$transaction((tx) =>
+        this.applyIntentInTransaction(tx, paymentId, intent),
+      );
     };
 
     // Webhooks arrive with no tenant in context, so one is established from the payment's
@@ -258,15 +283,21 @@ export class PaymentsService {
         if (intent.kind === 'mark_paid' && intent.amount !== payment.amount) {
           await tx.payment.update({
             where: { id: paymentId },
-            data: { state: 'FAILED', failureReason: `Amount mismatch: expected ${payment.amount}, got ${intent.amount}` },
+            data: {
+              state: 'FAILED',
+              failureReason: `Amount mismatch: expected ${payment.amount}, got ${intent.amount}`,
+            },
           });
           await this.audit.record({
-            tenantId: payment.tenantId, action: 'payment.amount_mismatch',
-            entityType: 'PAYMENT', entityId: paymentId,
+            tenantId: payment.tenantId,
+            action: 'payment.amount_mismatch',
+            entityType: 'PAYMENT',
+            entityId: paymentId,
             after: { expected: payment.amount, received: intent.amount },
           });
           throw new DomainError(ErrorCode.PAYMENT_AMOUNT_MISMATCH, undefined, {
-            expected: payment.amount, received: intent.amount,
+            expected: payment.amount,
+            received: intent.amount,
           });
         }
 
@@ -274,16 +305,21 @@ export class PaymentsService {
           where: { id: paymentId },
           data: {
             state: nextState,
-            externalId: 'externalId' in intent ? intent.externalId ?? payment.externalId : payment.externalId,
+            externalId:
+              'externalId' in intent
+                ? (intent.externalId ?? payment.externalId)
+                : payment.externalId,
             paidAt: intent.kind === 'mark_paid' ? intent.paidAt : payment.paidAt,
             failureReason: intent.kind === 'mark_failed' ? intent.reason : undefined,
-            refundedAmount: intent.kind === 'mark_refunded' ? intent.amount : payment.refundedAmount,
+            refundedAmount:
+              intent.kind === 'mark_refunded' ? intent.amount : payment.refundedAmount,
           },
         });
 
         await tx.paymentTransaction.create({
           data: {
-            tenantId: payment.tenantId, paymentId,
+            tenantId: payment.tenantId,
+            paymentId,
             kind: intent.kind,
             amount: 'amount' in intent ? intent.amount : null,
             rawPayload: intent as unknown as Prisma.InputJsonValue,
@@ -305,27 +341,55 @@ export class PaymentsService {
           }
           // Only emitted on a *real* transition, which is what stops a replay from
           // double-crediting loyalty or notifying the customer twice.
-          await this.events.emit(tx, DomainEventType.PAYMENT_SUCCEEDED, { type: 'PAYMENT', id: paymentId }, {
-            paymentId, orderId: payment.orderId ?? undefined, bookingId: payment.bookingId ?? undefined,
-            customerId: payment.customerId ?? undefined, amount: payment.amount, provider: payment.provider,
-          });
+          await this.events.emit(
+            tx,
+            DomainEventType.PAYMENT_SUCCEEDED,
+            { type: 'PAYMENT', id: paymentId },
+            {
+              paymentId,
+              orderId: payment.orderId ?? undefined,
+              bookingId: payment.bookingId ?? undefined,
+              customerId: payment.customerId ?? undefined,
+              amount: payment.amount,
+              provider: payment.provider,
+            },
+          );
         } else if (intent.kind === 'mark_failed' || intent.kind === 'mark_cancelled') {
           if (payment.orderId) {
-            await tx.order.update({ where: { id: payment.orderId }, data: { paymentStatus: 'FAILED' } });
+            await tx.order.update({
+              where: { id: payment.orderId },
+              data: { paymentStatus: 'FAILED' },
+            });
           }
-          await this.events.emit(tx, DomainEventType.PAYMENT_FAILED, { type: 'PAYMENT', id: paymentId }, {
-            paymentId, orderId: payment.orderId ?? undefined, reason: intent.reason,
-          });
+          await this.events.emit(
+            tx,
+            DomainEventType.PAYMENT_FAILED,
+            { type: 'PAYMENT', id: paymentId },
+            {
+              paymentId,
+              orderId: payment.orderId ?? undefined,
+              reason: intent.reason,
+            },
+          );
         } else if (intent.kind === 'mark_refunded') {
           if (payment.orderId) {
             await tx.order.update({
               where: { id: payment.orderId },
-              data: { paymentStatus: intent.amount >= payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },
+              data: {
+                paymentStatus: intent.amount >= payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+              },
             });
           }
-          await this.events.emit(tx, DomainEventType.PAYMENT_REFUNDED, { type: 'PAYMENT', id: paymentId }, {
-            paymentId, orderId: payment.orderId ?? undefined, amount: intent.amount,
-          });
+          await this.events.emit(
+            tx,
+            DomainEventType.PAYMENT_REFUNDED,
+            { type: 'PAYMENT', id: paymentId },
+            {
+              paymentId,
+              orderId: payment.orderId ?? undefined,
+              amount: intent.amount,
+            },
+          );
         }
       }
     }
@@ -333,7 +397,8 @@ export class PaymentsService {
 
   async listForOrder(orderId: string) {
     return this.prisma.client.payment.findMany({
-      where: { orderId }, orderBy: { createdAt: 'desc' },
+      where: { orderId },
+      orderBy: { createdAt: 'desc' },
       include: { transactions: { orderBy: { createdAt: 'desc' }, take: 10 } },
     });
   }
@@ -347,18 +412,30 @@ export class PaymentsService {
 
     const payment = await this.prisma.client.payment.create({
       data: {
-        orderId, customerId: order.customerId, provider: 'cash', method: 'CASH',
-        state: 'PENDING', amount: order.total, currency: order.currency,
+        orderId,
+        customerId: order.customerId,
+        provider: 'cash',
+        method: 'CASH',
+        state: 'PENDING',
+        amount: order.total,
+        currency: order.currency,
       } as never,
     });
 
     await this.applyIntent(payment.id, {
-      kind: 'mark_paid', externalId: `cash_${payment.id}`, amount: order.total, paidAt: new Date(),
+      kind: 'mark_paid',
+      externalId: `cash_${payment.id}`,
+      amount: order.total,
+      paidAt: new Date(),
     });
 
     await this.audit.record({
-      tenantId: order.tenantId, actorUserId, action: 'payment.cash_received',
-      entityType: 'ORDER', entityId: orderId, after: { amount: order.total },
+      tenantId: order.tenantId,
+      actorUserId,
+      action: 'payment.cash_received',
+      entityType: 'ORDER',
+      entityId: orderId,
+      after: { amount: order.total },
     });
     return this.prisma.client.payment.findFirstOrThrow({ where: { id: payment.id } });
   }
@@ -367,11 +444,16 @@ export class PaymentsService {
 
   private stateFor(intent: NormalizedIntent): PaymentState | null {
     switch (intent.kind) {
-      case 'mark_paid': return 'PAID';
-      case 'mark_failed': return 'FAILED';
-      case 'mark_cancelled': return 'CANCELLED';
-      case 'mark_refunded': return 'REFUNDED';
-      default: return null;
+      case 'mark_paid':
+        return 'PAID';
+      case 'mark_failed':
+        return 'FAILED';
+      case 'mark_cancelled':
+        return 'CANCELLED';
+      case 'mark_refunded':
+        return 'REFUNDED';
+      default:
+        return null;
     }
   }
 
@@ -387,7 +469,13 @@ export class PaymentsService {
       return {
         provider,
         integrationId: null,
-        ctx: { tenantId: '', credentials: {}, config: {}, returnUrl: options.returnUrl, language: options.language ?? 'uz' },
+        ctx: {
+          tenantId: '',
+          credentials: {},
+          config: {},
+          returnUrl: options.returnUrl,
+          language: options.language ?? 'uz',
+        },
       };
     }
 
@@ -395,7 +483,9 @@ export class PaymentsService {
       where: { type: 'PAYMENT', provider: providerKey, isEnabled: true },
     });
     if (!integration) {
-      throw new DomainError(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE, undefined, { provider: providerKey });
+      throw new DomainError(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE, undefined, {
+        provider: providerKey,
+      });
     }
 
     return {
@@ -412,19 +502,26 @@ export class PaymentsService {
   }
 
   private openCredentials(integration: {
-    secretCipher: string | null; secretIv: string | null; secretTag: string | null; keyVersion: number;
+    secretCipher: string | null;
+    secretIv: string | null;
+    secretTag: string | null;
+    keyVersion: number;
   }): Record<string, string> {
     if (!integration.secretCipher || !integration.secretIv || !integration.secretTag) return {};
     return this.vault.openJson({
-      cipher: integration.secretCipher, iv: integration.secretIv,
-      tag: integration.secretTag, keyVersion: integration.keyVersion,
+      cipher: integration.secretCipher,
+      iv: integration.secretIv,
+      tag: integration.secretTag,
+      keyVersion: integration.keyVersion,
     });
   }
 }
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof error === 'object' && error !== null && 'code' in error &&
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
     (error as { code: string }).code === 'P2002'
   );
 }

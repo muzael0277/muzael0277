@@ -1,8 +1,15 @@
 import { z } from 'zod';
 import { BUSINESS_TEMPLATES, MODULES } from '@bizbot/rbac';
 import {
-  slugSchema, phoneSchema, emailSchema, languageSchema, workingHoursSchema,
-  moneySchema, idSchema, imageUrlSchema, timeOfDaySchema,
+  slugSchema,
+  phoneSchema,
+  emailSchema,
+  languageSchema,
+  workingHoursSchema,
+  moneySchema,
+  idSchema,
+  imageUrlSchema,
+  timeOfDaySchema,
 } from './primitives';
 
 const templateKeySchema = z.enum(BUSINESS_TEMPLATES as unknown as [string, ...string[]]);
@@ -22,7 +29,10 @@ export type CreateTenantInput = z.input<typeof createTenantSchema>;
 export const updateTenantSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
   logoUrl: imageUrlSchema.nullable().optional(),
-  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   timezone: z.string().optional(),
   defaultLanguage: languageSchema.optional(),
 });
@@ -33,35 +43,50 @@ export const updateTenantSettingsSchema = z.object({
   website: z.string().url().max(255).nullable().optional(),
   instagram: z.string().max(64).nullable().optional(),
   telegramChannel: z.string().max(64).nullable().optional(),
-  description: z.object({ uz: z.string().max(2000).optional(), ru: z.string().max(2000).optional(), en: z.string().max(2000).optional() }).optional(),
+  description: z
+    .object({
+      uz: z.string().max(2000).optional(),
+      ru: z.string().max(2000).optional(),
+      en: z.string().max(2000).optional(),
+    })
+    .optional(),
   workingHours: workingHoursSchema.optional(),
-  deliverySettings: z.object({
-    enabled: z.boolean(),
-    flatFee: moneySchema,
-    freeAbove: moneySchema.nullable(),
-    minOrderTotal: moneySchema,
-    zones: z.array(z.object({ name: z.string().max(64), fee: moneySchema })).max(50).optional(),
-    estimatedMinutes: z.number().int().min(0).max(600).optional(),
-  }).optional(),
-  bookingSettings: z.object({
-    slotStepMinutes: z.number().int().min(5).max(120),
-    minLeadTimeMinutes: z.number().int().min(0).max(10080),
-    maxAdvanceDays: z.number().int().min(1).max(365),
-    autoConfirm: z.boolean(),
-    requirePrepayment: z.boolean().default(false),
-    cancellationDeadlineMinutes: z.number().int().min(0).max(10080).default(120),
-    reminderOffsetsMinutes: z.array(z.number().int().min(5).max(20160)).max(4),
-  }).optional(),
-  loyaltySettings: z.object({
-    enabled: z.boolean(),
-    type: z.enum(['CASHBACK', 'POINTS']),
-    /** Percentage of order total credited back. */
-    rate: z.number().min(0).max(50),
-    minOrderTotal: moneySchema.default(0),
-    /** Maximum share of an order that bonuses may cover. */
-    maxRedeemPercent: z.number().min(0).max(100).default(50),
-    expiryDays: z.number().int().min(0).max(3650).nullable().default(null),
-  }).optional(),
+  deliverySettings: z
+    .object({
+      enabled: z.boolean(),
+      flatFee: moneySchema,
+      freeAbove: moneySchema.nullable(),
+      minOrderTotal: moneySchema,
+      zones: z
+        .array(z.object({ name: z.string().max(64), fee: moneySchema }))
+        .max(50)
+        .optional(),
+      estimatedMinutes: z.number().int().min(0).max(600).optional(),
+    })
+    .optional(),
+  bookingSettings: z
+    .object({
+      slotStepMinutes: z.number().int().min(5).max(120),
+      minLeadTimeMinutes: z.number().int().min(0).max(10080),
+      maxAdvanceDays: z.number().int().min(1).max(365),
+      autoConfirm: z.boolean(),
+      requirePrepayment: z.boolean().default(false),
+      cancellationDeadlineMinutes: z.number().int().min(0).max(10080).default(120),
+      reminderOffsetsMinutes: z.array(z.number().int().min(5).max(20160)).max(4),
+    })
+    .optional(),
+  loyaltySettings: z
+    .object({
+      enabled: z.boolean(),
+      type: z.enum(['CASHBACK', 'POINTS']),
+      /** Percentage of order total credited back. */
+      rate: z.number().min(0).max(50),
+      minOrderTotal: moneySchema.default(0),
+      /** Maximum share of an order that bonuses may cover. */
+      maxRedeemPercent: z.number().min(0).max(100).default(50),
+      expiryDays: z.number().int().min(0).max(3650).nullable().default(null),
+    })
+    .optional(),
 });
 
 export const setModulesSchema = z.object({
@@ -101,9 +126,14 @@ export const createEmployeeSchema = z.object({
   branchId: idSchema.optional(),
   avatarUrl: imageUrlSchema.nullable().optional(),
   serviceIds: z.array(idSchema).max(200).optional(),
-  schedule: z.array(z.object({
-    weekday: z.number().int().min(0).max(6),
-    start: timeOfDaySchema,
-    end: timeOfDaySchema,
-  })).max(21).optional(),
+  schedule: z
+    .array(
+      z.object({
+        weekday: z.number().int().min(0).max(6),
+        start: timeOfDaySchema,
+        end: timeOfDaySchema,
+      }),
+    )
+    .max(21)
+    .optional(),
 });

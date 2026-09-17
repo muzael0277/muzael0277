@@ -1,7 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  addCartItemSchema, updateCartItemSchema, applyPromoSchema, checkoutSchema,
-  availabilityQuerySchema, createBookingSchema, cancelBookingSchema,
+  addCartItemSchema,
+  updateCartItemSchema,
+  applyPromoSchema,
+  checkoutSchema,
+  availabilityQuerySchema,
+  createBookingSchema,
+  cancelBookingSchema,
 } from '@bizbot/contracts';
 import { resolveI18n, type Language } from '@bizbot/shared';
 import { CurrentActor, CustomerRoute, Lang, RequireModule } from '../../common/decorators';
@@ -43,14 +48,21 @@ export class ShopController {
         where: { id: actor.customerId! },
         include: { loyaltyAccount: true, addresses: true },
       }),
-      this.prisma.client.tenantModule.findMany({ where: { enabled: true }, select: { module: true } }),
+      this.prisma.client.tenantModule.findMany({
+        where: { enabled: true },
+        select: { module: true },
+      }),
     ]);
 
     return {
       tenant: {
-        id: tenant.id, name: tenant.name, slug: tenant.slug,
-        logoUrl: tenant.logoUrl, primaryColor: tenant.primaryColor,
-        currency: tenant.currency, timezone: tenant.timezone,
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        logoUrl: tenant.logoUrl,
+        primaryColor: tenant.primaryColor,
+        currency: tenant.currency,
+        timezone: tenant.timezone,
         templateKey: tenant.templateKey,
         description: resolveI18n(tenant.settings?.description as never, lang),
         phone: tenant.settings?.phone ?? null,
@@ -59,10 +71,14 @@ export class ShopController {
         loyalty: tenant.settings?.loyaltySettings ?? {},
       },
       customer: {
-        id: customer.id, firstName: customer.firstName, lastName: customer.lastName,
-        phone: customer.phone, language: customer.language,
+        id: customer.id,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phone: customer.phone,
+        language: customer.language,
         loyaltyBalance: customer.loyaltyAccount?.balance ?? 0,
-        orderCount: customer.orderCount, bookingCount: customer.bookingCount,
+        orderCount: customer.orderCount,
+        bookingCount: customer.bookingCount,
         addresses: customer.addresses,
       },
       modules: modules.map((m) => m.module),
@@ -76,11 +92,13 @@ export class ShopController {
   async catalog(@Lang() lang: Language, @Query('categoryId') categoryId?: string) {
     const [categories, products] = await Promise.all([
       this.prisma.client.category.findMany({
-        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
       }),
       this.prisma.client.product.findMany({
         where: {
-          isActive: true, archivedAt: null,
+          isActive: true,
+          archivedAt: null,
           ...(categoryId ? { categoryId } : {}),
         },
         orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }],
@@ -91,13 +109,17 @@ export class ShopController {
 
     return {
       categories: categories.map((c) => ({
-        id: c.id, name: resolveI18n(c.name as never, lang), imageUrl: c.imageUrl, parentId: c.parentId,
+        id: c.id,
+        name: resolveI18n(c.name as never, lang),
+        imageUrl: c.imageUrl,
+        parentId: c.parentId,
       })),
       products: products.map((p) => ({
         id: p.id,
         name: resolveI18n(p.name as never, lang),
         description: resolveI18n(p.description as never, lang),
-        price: p.price, oldPrice: p.oldPrice,
+        price: p.price,
+        oldPrice: p.oldPrice,
         image: p.images[0] ?? null,
         categoryId: p.categoryId,
         isFeatured: p.isFeatured,
@@ -105,8 +127,10 @@ export class ShopController {
         // mysteriously between visits.
         isAvailable: !p.trackInventory || this.hasStock(p),
         variants: p.variants.map((v) => ({
-          id: v.id, name: resolveI18n(v.name as never, lang),
-          priceModifier: v.priceModifier, isAvailable: v.stockQuantity > 0 || !p.trackInventory,
+          id: v.id,
+          name: resolveI18n(v.name as never, lang),
+          priceModifier: v.priceModifier,
+          isAvailable: v.stockQuantity > 0 || !p.trackInventory,
         })),
       })),
     };
@@ -121,7 +145,11 @@ export class ShopController {
         variants: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
         modifierGroups: {
           orderBy: { sortOrder: 'asc' },
-          include: { group: { include: { options: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
+          include: {
+            group: {
+              include: { options: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
+            },
+          },
         },
       },
     });
@@ -130,11 +158,14 @@ export class ShopController {
       id: product.id,
       name: resolveI18n(product.name as never, lang),
       description: resolveI18n(product.description as never, lang),
-      price: product.price, oldPrice: product.oldPrice,
+      price: product.price,
+      oldPrice: product.oldPrice,
       images: product.images,
       isAvailable: !product.trackInventory || this.hasStock(product),
       variants: product.variants.map((v) => ({
-        id: v.id, name: resolveI18n(v.name as never, lang), priceModifier: v.priceModifier,
+        id: v.id,
+        name: resolveI18n(v.name as never, lang),
+        priceModifier: v.priceModifier,
         isAvailable: v.stockQuantity > 0 || !product.trackInventory,
       })),
       modifierGroups: product.modifierGroups.map((link) => ({
@@ -143,7 +174,10 @@ export class ShopController {
         minSelect: link.group.minSelect,
         maxSelect: link.group.maxSelect,
         options: link.group.options.map((o) => ({
-          id: o.id, name: resolveI18n(o.name as never, lang), price: o.price, isDefault: o.isDefault,
+          id: o.id,
+          name: resolveI18n(o.name as never, lang),
+          price: o.price,
+          isDefault: o.isDefault,
         })),
       })),
     };
@@ -161,8 +195,12 @@ export class ShopController {
       id: s.id,
       name: resolveI18n(s.name as never, lang),
       description: resolveI18n(s.description as never, lang),
-      price: s.price, durationMinutes: s.durationMinutes, imageUrl: s.imageUrl,
-      category: s.category ? { id: s.category.id, name: resolveI18n(s.category.name as never, lang) } : null,
+      price: s.price,
+      durationMinutes: s.durationMinutes,
+      imageUrl: s.imageUrl,
+      category: s.category
+        ? { id: s.category.id, name: resolveI18n(s.category.name as never, lang) }
+        : null,
     }));
   }
 
@@ -172,8 +210,13 @@ export class ShopController {
       where: { isActive: true },
       orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }],
       select: {
-        id: true, name: true, address: true, phone: true,
-        latitude: true, longitude: true, workingHours: true,
+        id: true,
+        name: true,
+        address: true,
+        phone: true,
+        latitude: true,
+        longitude: true,
+        workingHours: true,
       },
     });
   }
@@ -212,7 +255,10 @@ export class ShopController {
 
   @Post('cart/promo')
   @RequireModule('ORDERS')
-  applyPromo(@CurrentActor() actor: RequestActor, @Body(zodBody(applyPromoSchema)) dto: { code: string }) {
+  applyPromo(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(applyPromoSchema)) dto: { code: string },
+  ) {
     return this.cart.applyPromo(actor.customerId!, dto.code);
   }
 
@@ -277,11 +323,17 @@ export class ShopController {
 
   @Get('loyalty')
   @RequireModule('LOYALTY')
-  myLoyalty(@CurrentActor() actor: RequestActor, @Query() query: { page?: number; pageSize?: number }) {
+  myLoyalty(
+    @CurrentActor() actor: RequestActor,
+    @Query() query: { page?: number; pageSize?: number },
+  ) {
     return this.loyalty.transactions(actor.customerId!, query);
   }
 
-  private hasStock(product: { stockQuantity: number; variants?: { stockQuantity: number }[] }): boolean {
+  private hasStock(product: {
+    stockQuantity: number;
+    variants?: { stockQuantity: number }[];
+  }): boolean {
     if (product.variants?.length) return product.variants.some((v) => v.stockQuantity > 0);
     return product.stockQuantity > 0;
   }

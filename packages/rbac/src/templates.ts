@@ -9,13 +9,18 @@
 import type { ModuleKey } from './modules';
 
 export const BUSINESS_TEMPLATES = [
-  'ONLINE_STORE', 'RESTAURANT', 'BEAUTY', 'SERVICE', 'CUSTOM',
+  'ONLINE_STORE',
+  'RESTAURANT',
+  'BEAUTY',
+  'SERVICE',
+  'CUSTOM',
 ] as const;
 
 export type BusinessTemplateKey = (typeof BUSINESS_TEMPLATES)[number];
 
 export type FulfillmentType = 'DELIVERY' | 'PICKUP' | 'DINE_IN';
-export type MiniAppTab = 'home' | 'catalog' | 'menu' | 'services' | 'cart' | 'orders' | 'bookings' | 'bonus' | 'profile';
+export type MiniAppTab =
+  'home' | 'catalog' | 'menu' | 'services' | 'cart' | 'orders' | 'bookings' | 'bonus' | 'profile';
 
 export interface TemplateDefinition {
   key: BusinessTemplateKey;
@@ -53,7 +58,19 @@ export const TEMPLATE_DEFINITIONS: Record<BusinessTemplateKey, TemplateDefinitio
       uz: ['Kiyim do‘koni', 'Elektronika', 'Kosmetika', 'Gullar', 'Sport tovarlari'],
       ru: ['Магазин одежды', 'Электроника', 'Косметика', 'Цветы', 'Спорттовары'],
     },
-    modules: ['CRM', 'CATALOG', 'ORDERS', 'PAYMENTS', 'DELIVERY', 'INVENTORY', 'PROMOCODES', 'LOYALTY', 'MESSAGES', 'ANALYTICS', 'TELEGRAM'],
+    modules: [
+      'CRM',
+      'CATALOG',
+      'ORDERS',
+      'PAYMENTS',
+      'DELIVERY',
+      'INVENTORY',
+      'PROMOCODES',
+      'LOYALTY',
+      'MESSAGES',
+      'ANALYTICS',
+      'TELEGRAM',
+    ],
     moduleConfig: {
       ORDERS: { fulfillment: ['DELIVERY', 'PICKUP'] satisfies FulfillmentType[], minOrderTotal: 0 },
       LOYALTY: { type: 'CASHBACK', rate: 3 },
@@ -82,9 +99,25 @@ export const TEMPLATE_DEFINITIONS: Record<BusinessTemplateKey, TemplateDefinitio
       uz: ['Restoran', 'Kafe', 'Fast food', 'Choyxona', 'Qahvaxona', 'Shirinliklar'],
       ru: ['Ресторан', 'Кафе', 'Фастфуд', 'Чайхана', 'Кофейня', 'Кондитерская'],
     },
-    modules: ['CRM', 'CATALOG', 'ORDERS', 'PAYMENTS', 'DELIVERY', 'BRANCHES', 'INVENTORY', 'LOYALTY', 'PROMOCODES', 'MESSAGES', 'ANALYTICS', 'TELEGRAM'],
+    modules: [
+      'CRM',
+      'CATALOG',
+      'ORDERS',
+      'PAYMENTS',
+      'DELIVERY',
+      'BRANCHES',
+      'INVENTORY',
+      'LOYALTY',
+      'PROMOCODES',
+      'MESSAGES',
+      'ANALYTICS',
+      'TELEGRAM',
+    ],
     moduleConfig: {
-      ORDERS: { fulfillment: ['DELIVERY', 'PICKUP', 'DINE_IN'] satisfies FulfillmentType[], minOrderTotal: 50000 },
+      ORDERS: {
+        fulfillment: ['DELIVERY', 'PICKUP', 'DINE_IN'] satisfies FulfillmentType[],
+        minOrderTotal: 50000,
+      },
       LOYALTY: { type: 'CASHBACK', rate: 5 },
       DELIVERY: { flatFee: 15000, freeAbove: 200000 },
       CATALOG: { modifiersEnabled: true },
@@ -137,9 +170,27 @@ export const TEMPLATE_DEFINITIONS: Record<BusinessTemplateKey, TemplateDefinitio
       uz: ['Barbershop', 'Go‘zallik saloni', 'Manikyur studiyasi', 'SPA', 'Massaj'],
       ru: ['Барбершоп', 'Салон красоты', 'Ногтевая студия', 'СПА', 'Массаж'],
     },
-    modules: ['CRM', 'SERVICES', 'BOOKING', 'EMPLOYEES', 'BRANCHES', 'PAYMENTS', 'LOYALTY', 'PROMOCODES', 'MESSAGES', 'ANALYTICS', 'TELEGRAM'],
+    modules: [
+      'CRM',
+      'SERVICES',
+      'BOOKING',
+      'EMPLOYEES',
+      'BRANCHES',
+      'PAYMENTS',
+      'LOYALTY',
+      'PROMOCODES',
+      'MESSAGES',
+      'ANALYTICS',
+      'TELEGRAM',
+    ],
     moduleConfig: {
-      BOOKING: { slotStepMinutes: 15, minLeadTimeMinutes: 60, maxAdvanceDays: 30, autoConfirm: true, reminderOffsetsMinutes: [1440, 120] },
+      BOOKING: {
+        slotStepMinutes: 15,
+        minLeadTimeMinutes: 60,
+        maxAdvanceDays: 30,
+        autoConfirm: true,
+        reminderOffsetsMinutes: [1440, 120],
+      },
       LOYALTY: { type: 'CASHBACK', rate: 5 },
     },
     miniAppTabs: ['home', 'services', 'bookings', 'bonus', 'profile'],
@@ -165,9 +216,25 @@ export const TEMPLATE_DEFINITIONS: Record<BusinessTemplateKey, TemplateDefinitio
       uz: ['Klinika', 'Stomatologiya', 'Avtoservis', 'O‘quv markazi', 'Yuridik xizmat', 'Tozalash'],
       ru: ['Клиника', 'Стоматология', 'Автосервис', 'Учебный центр', 'Юруслуги', 'Клининг'],
     },
-    modules: ['CRM', 'SERVICES', 'BOOKING', 'EMPLOYEES', 'BRANCHES', 'PAYMENTS', 'MESSAGES', 'ANALYTICS', 'TELEGRAM'],
+    modules: [
+      'CRM',
+      'SERVICES',
+      'BOOKING',
+      'EMPLOYEES',
+      'BRANCHES',
+      'PAYMENTS',
+      'MESSAGES',
+      'ANALYTICS',
+      'TELEGRAM',
+    ],
     moduleConfig: {
-      BOOKING: { slotStepMinutes: 30, minLeadTimeMinutes: 120, maxAdvanceDays: 60, autoConfirm: false, reminderOffsetsMinutes: [1440, 120] },
+      BOOKING: {
+        slotStepMinutes: 30,
+        minLeadTimeMinutes: 120,
+        maxAdvanceDays: 60,
+        autoConfirm: false,
+        reminderOffsetsMinutes: [1440, 120],
+      },
     },
     miniAppTabs: ['home', 'services', 'bookings', 'profile'],
     orderPipeline: ['NEW', 'ACCEPTED', 'COMPLETED'],
@@ -229,8 +296,14 @@ export function recommendTemplate(answers: OnboardingAnswers): {
   const modules = new Set<ModuleKey>(TEMPLATE_DEFINITIONS[template].modules);
 
   // Answers refine the preset — a salon that also sells products gets a catalog.
-  if (answers.sellsProducts) { modules.add('CATALOG'); modules.add('ORDERS'); }
-  if (answers.takesBookings) { modules.add('SERVICES'); modules.add('BOOKING'); }
+  if (answers.sellsProducts) {
+    modules.add('CATALOG');
+    modules.add('ORDERS');
+  }
+  if (answers.takesBookings) {
+    modules.add('SERVICES');
+    modules.add('BOOKING');
+  }
   if (answers.delivers && modules.has('ORDERS')) modules.add('DELIVERY');
   else modules.delete('DELIVERY');
   if (answers.branchCount > 1) modules.add('BRANCHES');

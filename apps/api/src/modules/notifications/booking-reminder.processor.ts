@@ -37,7 +37,9 @@ export class BookingReminderProcessor implements OnModuleInit, OnModuleDestroy {
       async (job) => {
         if (job.name !== 'booking-reminder') return;
         const { tenantId, bookingId, offsetMinutes } = job.data as {
-          tenantId: string; bookingId: string; offsetMinutes: number;
+          tenantId: string;
+          bookingId: string;
+          offsetMinutes: number;
         };
         await tenantContext.run({ tenantId, actor: { type: 'SYSTEM' } }, () =>
           this.sendReminder(tenantId, bookingId, offsetMinutes),
@@ -68,17 +70,29 @@ export class BookingReminderProcessor implements OnModuleInit, OnModuleDestroy {
 
     // Cancelled, completed, or rescheduled past this reminder's window: nothing to send.
     if (!booking) return;
-    if (booking.status === 'CANCELLED' || booking.status === 'NO_SHOW' || booking.status === 'COMPLETED') return;
+    if (
+      booking.status === 'CANCELLED' ||
+      booking.status === 'NO_SHOW' ||
+      booking.status === 'COMPLETED'
+    )
+      return;
     if (booking.startsAt.getTime() < Date.now()) return;
 
     const tenant = await this.prisma.client.tenant.findFirstOrThrow();
     const scheduledFor = new Date(booking.startsAt.getTime() - offsetMinutes * 60_000);
 
     const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tenant.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: tenant.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     });
-    const parts = Object.fromEntries(formatter.formatToParts(booking.startsAt).map((p) => [p.type, p.value]));
+    const parts = Object.fromEntries(
+      formatter.formatToParts(booking.startsAt).map((p) => [p.type, p.value]),
+    );
     const serviceName = booking.serviceNameSnapshot as Record<string, string>;
 
     await this.notifications.send({

@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type BookingStatus } from '@bizbot/database';
 import {
-  DomainError, ErrorCode, localDateString, localWeekday, normalizePageParams,
-  paginate, toSkipTake, type Weekday,
+  DomainError,
+  ErrorCode,
+  localDateString,
+  localWeekday,
+  normalizePageParams,
+  paginate,
+  toSkipTake,
+  type Weekday,
 } from '@bizbot/shared';
 import type { CreateBookingInput } from '@bizbot/contracts';
 import { randomCode } from '@bizbot/shared/server';
@@ -52,16 +58,26 @@ export class BookingsService {
   // ── availability ─────────────────────────────────────────────────────────────
 
   async getAvailability(query: {
-    serviceId: string; date: string; branchId?: string; resourceId?: string; employeeId?: string;
+    serviceId: string;
+    date: string;
+    branchId?: string;
+    resourceId?: string;
+    employeeId?: string;
   }) {
     const [service, tenant] = await Promise.all([
-      this.prisma.client.service.findFirstOrThrow({ where: { id: query.serviceId, isActive: true } }),
+      this.prisma.client.service.findFirstOrThrow({
+        where: { id: query.serviceId, isActive: true },
+      }),
       this.loadTenantContext(),
     ]);
 
     const resources = await this.resourcesForService(query);
     if (resources.length === 0) {
-      return { date: query.date, service: { id: service.id, durationMinutes: service.durationMinutes }, resources: [] };
+      return {
+        date: query.date,
+        service: { id: service.id, durationMinutes: service.durationMinutes },
+        resources: [],
+      };
     }
 
     const weekday = localWeekday(new Date(`${query.date}T12:00:00Z`), tenant.timezone) as Weekday;
@@ -85,7 +101,8 @@ export class BookingsService {
       this.prisma.client.resourceTimeOff.findMany({
         where: {
           resourceId: { in: resources.map((r) => r.id) },
-          startsAt: { lt: windowEnd }, endsAt: { gt: windowStart },
+          startsAt: { lt: windowEnd },
+          endsAt: { gt: windowStart },
         },
         select: { resourceId: true, startsAt: true, endsAt: true },
       }),
@@ -96,9 +113,11 @@ export class BookingsService {
 
     const perResource = resources.map((resource) => {
       const blocked = [
-        ...bookings.filter((b) => b.resourceId === resource.id)
+        ...bookings
+          .filter((b) => b.resourceId === resource.id)
           .map((b) => ({ startsAt: b.blockStartsAt, endsAt: b.blockEndsAt })),
-        ...timeOff.filter((t) => t.resourceId === resource.id)
+        ...timeOff
+          .filter((t) => t.resourceId === resource.id)
           .map((t) => ({ startsAt: t.startsAt, endsAt: t.endsAt })),
       ];
 
@@ -114,7 +133,9 @@ export class BookingsService {
         businessHours: hoursForWeekday(tenant.settings?.workingHours, weekday),
         branchHours: hoursForWeekday(resource.branch?.workingHours, weekday),
         resourceSchedule: resource.schedules.map((s) => ({
-          weekday: s.weekday as Weekday, startTime: s.startTime, endTime: s.endTime,
+          weekday: s.weekday as Weekday,
+          startTime: s.startTime,
+          endTime: s.endTime,
         })),
         blocked,
         slotStepMinutes: settings.slotStepMinutes,
@@ -138,7 +159,9 @@ export class BookingsService {
     return {
       date: query.date,
       service: {
-        id: service.id, name: service.name, price: service.price,
+        id: service.id,
+        name: service.name,
+        price: service.price,
         durationMinutes: service.durationMinutes,
       },
       resources: perResource,
@@ -156,7 +179,9 @@ export class BookingsService {
     }
 
     const [service, tenant] = await Promise.all([
-      this.prisma.client.service.findFirstOrThrow({ where: { id: input.serviceId, isActive: true } }),
+      this.prisma.client.service.findFirstOrThrow({
+        where: { id: input.serviceId, isActive: true },
+      }),
       this.loadTenantContext(),
     ]);
     const settings = this.bookingSettings(tenant.settings?.bookingSettings);
@@ -177,7 +202,9 @@ export class BookingsService {
       });
     }
     if (startsAt.getTime() > now.getTime() + settings.maxAdvanceDays * 86_400_000) {
-      throw new DomainError(ErrorCode.BOOKING_TOO_FAR, undefined, { maxAdvanceDays: settings.maxAdvanceDays });
+      throw new DomainError(ErrorCode.BOOKING_TOO_FAR, undefined, {
+        maxAdvanceDays: settings.maxAdvanceDays,
+      });
     }
 
     // The slot must still be inside working hours — a client could post any instant.
@@ -216,7 +243,8 @@ export class BookingsService {
         });
         if (conflict) {
           throw new DomainError(ErrorCode.BOOKING_SLOT_TAKEN, undefined, {
-            resourceId: resource.id, startsAt: startsAt.toISOString(),
+            resourceId: resource.id,
+            startsAt: startsAt.toISOString(),
           });
         }
 
@@ -229,7 +257,10 @@ export class BookingsService {
             resourceId: resource.id,
             branchId: resource.branchId ?? input.branchId ?? null,
             status,
-            startsAt, endsAt, blockStartsAt, blockEndsAt,
+            startsAt,
+            endsAt,
+            blockStartsAt,
+            blockEndsAt,
             durationMinutes: service.durationMinutes,
             priceSnapshot: service.price,
             serviceNameSnapshot: service.name as Prisma.InputJsonValue,
@@ -251,14 +282,19 @@ export class BookingsService {
 
         // Written in the same transaction as the booking: no event ever announces an
         // appointment that got rolled back.
-        await this.events.emit(tx, DomainEventType.BOOKING_CREATED, { type: 'BOOKING', id: created.id }, {
-          bookingId: created.id,
-          bookingNumber: created.bookingNumber,
-          customerId: customer.id,
-          serviceId: service.id,
-          resourceId: resource.id,
-          startsAt: startsAt.toISOString(),
-        });
+        await this.events.emit(
+          tx,
+          DomainEventType.BOOKING_CREATED,
+          { type: 'BOOKING', id: created.id },
+          {
+            bookingId: created.id,
+            bookingNumber: created.bookingNumber,
+            customerId: customer.id,
+            serviceId: service.id,
+            resourceId: resource.id,
+            startsAt: startsAt.toISOString(),
+          },
+        );
 
         return created;
       },
@@ -272,13 +308,20 @@ export class BookingsService {
 
   // ── lifecycle ────────────────────────────────────────────────────────────────
 
-  async updateStatus(id: string, next: BookingStatus, actor: { userId?: string }, comment?: string) {
+  async updateStatus(
+    id: string,
+    next: BookingStatus,
+    actor: { userId?: string },
+    comment?: string,
+  ) {
     const booking = await this.prisma.client.booking.findFirstOrThrow({ where: { id } });
 
     const allowed = ALLOWED_TRANSITIONS[booking.status];
     if (!allowed.includes(next)) {
       throw new DomainError(ErrorCode.INVALID_STATUS_TRANSITION, undefined, {
-        from: booking.status, to: next, allowed,
+        from: booking.status,
+        to: next,
+        allowed,
       });
     }
 
@@ -294,42 +337,67 @@ export class BookingsService {
           cancelReason: next === 'CANCELLED' ? comment : undefined,
           statusHistory: {
             create: {
-              tenantId: booking.tenantId, fromStatus: booking.status, toStatus: next,
-              changedById: actor.userId ?? null, comment,
+              tenantId: booking.tenantId,
+              fromStatus: booking.status,
+              toStatus: next,
+              changedById: actor.userId ?? null,
+              comment,
             },
           },
         },
       });
 
       if (next === 'COMPLETED') {
-        await this.events.emit(tx, DomainEventType.BOOKING_COMPLETED, { type: 'BOOKING', id }, {
-          bookingId: id, customerId: booking.customerId, price: booking.priceSnapshot,
-        });
+        await this.events.emit(
+          tx,
+          DomainEventType.BOOKING_COMPLETED,
+          { type: 'BOOKING', id },
+          {
+            bookingId: id,
+            customerId: booking.customerId,
+            price: booking.priceSnapshot,
+          },
+        );
       } else if (next === 'CANCELLED') {
-        await this.events.emit(tx, DomainEventType.BOOKING_CANCELLED, { type: 'BOOKING', id }, {
-          bookingId: id, customerId: booking.customerId,
-          startsAt: booking.startsAt.toISOString(), reason: comment,
-        });
+        await this.events.emit(
+          tx,
+          DomainEventType.BOOKING_CANCELLED,
+          { type: 'BOOKING', id },
+          {
+            bookingId: id,
+            customerId: booking.customerId,
+            startsAt: booking.startsAt.toISOString(),
+            reason: comment,
+          },
+        );
       }
       return result;
     });
 
     await this.audit.record({
-      tenantId: booking.tenantId, actorUserId: actor.userId, action: 'booking.status_changed',
-      entityType: 'BOOKING', entityId: id,
-      before: { status: booking.status }, after: { status: next },
+      tenantId: booking.tenantId,
+      actorUserId: actor.userId,
+      action: 'booking.status_changed',
+      entityType: 'BOOKING',
+      entityId: id,
+      before: { status: booking.status },
+      after: { status: next },
     });
     return updated;
   }
 
   /** Customer-initiated cancellation, subject to the tenant's deadline. */
   async cancelByCustomer(id: string, customerId: string, reason?: string) {
-    const booking = await this.prisma.client.booking.findFirstOrThrow({ where: { id, customerId } });
+    const booking = await this.prisma.client.booking.findFirstOrThrow({
+      where: { id, customerId },
+    });
     const tenant = await this.loadTenantContext();
     const settings = this.bookingSettings(tenant.settings?.bookingSettings);
 
     if (!ALLOWED_TRANSITIONS[booking.status].includes('CANCELLED')) {
-      throw new DomainError(ErrorCode.BOOKING_NOT_CANCELLABLE, undefined, { status: booking.status });
+      throw new DomainError(ErrorCode.BOOKING_NOT_CANCELLABLE, undefined, {
+        status: booking.status,
+      });
     }
 
     const deadline = booking.startsAt.getTime() - settings.cancellationDeadlineMinutes * 60_000;
@@ -370,7 +438,15 @@ export class BookingsService {
         orderBy: { [String(query.sortBy ?? 'startsAt')]: query.sortOrder ?? 'asc' } as never,
         ...toSkipTake(page),
         include: {
-          customer: { select: { id: true, firstName: true, lastName: true, phone: true, telegramUsername: true } },
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              telegramUsername: true,
+            },
+          },
           service: { select: { id: true, name: true, durationMinutes: true } },
           resource: { select: { id: true, name: true, kind: true, employeeId: true } },
           branch: { select: { id: true, name: true } },
@@ -399,7 +475,9 @@ export class BookingsService {
 
   private async loadTenantContext() {
     // The guarded client already scopes this to the request's tenant.
-    const tenant = await this.prisma.client.tenant.findFirstOrThrow({ include: { settings: true } });
+    const tenant = await this.prisma.client.tenant.findFirstOrThrow({
+      include: { settings: true },
+    });
     return tenant;
   }
 
@@ -415,7 +493,12 @@ export class BookingsService {
     };
   }
 
-  private async resourcesForService(query: { serviceId: string; branchId?: string; resourceId?: string; employeeId?: string }) {
+  private async resourcesForService(query: {
+    serviceId: string;
+    branchId?: string;
+    resourceId?: string;
+    employeeId?: string;
+  }) {
     const where: Prisma.BookingResourceWhereInput = { isActive: true };
     if (query.resourceId) where.id = query.resourceId;
     if (query.branchId) where.branchId = query.branchId;
@@ -457,7 +540,11 @@ export class BookingsService {
     // still re-checks, so a race just means the customer is told to choose again.
     const candidates = await this.resourcesForService({ serviceId, branchId: input.branchId });
     const first = candidates[0];
-    if (!first) throw new DomainError(ErrorCode.RESOURCE_UNAVAILABLE, 'No specialist can perform this service');
+    if (!first)
+      throw new DomainError(
+        ErrorCode.RESOURCE_UNAVAILABLE,
+        'No specialist can perform this service',
+      );
     return first;
   }
 
@@ -469,7 +556,9 @@ export class BookingsService {
       return this.prisma.client.customer.findFirstOrThrow({ where: { id: input.customerId } });
     }
     if (input.customerPhone) {
-      const existing = await this.prisma.client.customer.findFirst({ where: { phone: input.customerPhone } });
+      const existing = await this.prisma.client.customer.findFirst({
+        where: { phone: input.customerPhone },
+      });
       if (existing) return existing;
       return this.prisma.client.customer.create({
         data: {
@@ -486,8 +575,13 @@ export class BookingsService {
   private async assertWithinWorkingHours(
     startsAt: Date,
     _endsAt: Date,
-    resource: { id: string; schedules: { weekday: number; startTime: string; endTime: string }[];
-                branch?: { workingHours: unknown } | null; bufferBeforeMinutes: number; bufferAfterMinutes: number },
+    resource: {
+      id: string;
+      schedules: { weekday: number; startTime: string; endTime: string }[];
+      branch?: { workingHours: unknown } | null;
+      bufferBeforeMinutes: number;
+      bufferAfterMinutes: number;
+    },
     tenant: { timezone: string; settings: { workingHours: unknown } | null },
     service: { durationMinutes: number; bufferBeforeMinutes: number; bufferAfterMinutes: number },
     settings: BookingSettings,
@@ -499,7 +593,9 @@ export class BookingsService {
     // `now` must be the real clock, because an epoch `now` plus a 3650-day horizon lands
     // in 1979 and silently rejects every slot the availability endpoint just offered.
     const slots = computeAvailability({
-      date, timezone: tenant.timezone, now: new Date(0),
+      date,
+      timezone: tenant.timezone,
+      now: new Date(0),
       serviceDurationMinutes: service.durationMinutes,
       serviceBufferBeforeMinutes: service.bufferBeforeMinutes,
       serviceBufferAfterMinutes: service.bufferAfterMinutes,
@@ -508,7 +604,9 @@ export class BookingsService {
       businessHours: hoursForWeekday(tenant.settings?.workingHours, weekday),
       branchHours: hoursForWeekday(resource.branch?.workingHours, weekday),
       resourceSchedule: resource.schedules.map((s) => ({
-        weekday: s.weekday as Weekday, startTime: s.startTime, endTime: s.endTime,
+        weekday: s.weekday as Weekday,
+        startTime: s.startTime,
+        endTime: s.endTime,
       })),
       blocked: [],
       slotStepMinutes: settings.slotStepMinutes,
@@ -525,14 +623,24 @@ export class BookingsService {
     }
   }
 
-  private mergeSlots(perResource: { resource: { id: string; name: string }; slots: { startsAt: Date; label: string }[] }[]) {
+  private mergeSlots(
+    perResource: {
+      resource: { id: string; name: string };
+      slots: { startsAt: Date; label: string }[];
+    }[],
+  ) {
     const byTime = new Map<number, { startsAt: Date; label: string; resourceIds: string[] }>();
     for (const entry of perResource) {
       for (const slot of entry.slots) {
         const key = slot.startsAt.getTime();
         const existing = byTime.get(key);
         if (existing) existing.resourceIds.push(entry.resource.id);
-        else byTime.set(key, { startsAt: slot.startsAt, label: slot.label, resourceIds: [entry.resource.id] });
+        else
+          byTime.set(key, {
+            startsAt: slot.startsAt,
+            label: slot.label,
+            resourceIds: [entry.resource.id],
+          });
       }
     }
     return [...byTime.values()].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());

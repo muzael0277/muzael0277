@@ -31,7 +31,20 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading, icon, fullWidth, children, disabled, ...props }, ref) => (
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      loading,
+      icon,
+      fullWidth,
+      children,
+      disabled,
+      ...props
+    },
+    ref,
+  ) => (
     <button
       ref={ref}
       // A loading button stays disabled: double-submitting a checkout is the exact
@@ -59,7 +72,13 @@ export function Spinner({ className }: { className?: string }) {
   return (
     <svg className={cn('animate-spin', className)} viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-      <path className="opacity-90" d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <path
+        className="opacity-90"
+        d="M12 2a10 10 0 0 1 10 10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -91,7 +110,11 @@ export function Field({ label, hint, error, required, children, className }: Fie
       {label && (
         <label htmlFor={id} className="block text-sm font-medium text-content">
           {label}
-          {required && <span className="ml-0.5 text-critical" aria-hidden>*</span>}
+          {required && (
+            <span className="ml-0.5 text-critical" aria-hidden>
+              *
+            </span>
+          )}
         </label>
       )}
       {React.isValidElement(children)
@@ -102,9 +125,13 @@ export function Field({ label, hint, error, required, children, className }: Fie
           })
         : children}
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-critical">{error}</p>
+        <p id={`${id}-error`} className="text-sm text-critical">
+          {error}
+        </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="text-sm text-content-subtle">{hint}</p>
+        <p id={`${id}-hint`} className="text-sm text-content-subtle">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -118,23 +145,30 @@ const CONTROL = cn(
   'aria-[invalid=true]:border-critical aria-[invalid=true]:focus:ring-critical/20',
 );
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => <input ref={ref} className={cn(CONTROL, 'h-10', className)} {...props} />,
-);
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, ...props }, ref) => (
+  <input ref={ref} className={cn(CONTROL, 'h-10', className)} {...props} />
+));
 Input.displayName = 'Input';
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  ({ className, ...props }, ref) => <textarea ref={ref} className={cn(CONTROL, 'min-h-24 py-2', className)} {...props} />,
-);
+export const Textarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(({ className, ...props }, ref) => (
+  <textarea ref={ref} className={cn(CONTROL, 'min-h-24 py-2', className)} {...props} />
+));
 Textarea.displayName = 'Textarea';
 
-export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, children, ...props }, ref) => (
-    <select ref={ref} className={cn(CONTROL, 'h-10 pr-8', className)} {...props}>
-      {children}
-    </select>
-  ),
-);
+export const Select = React.forwardRef<
+  HTMLSelectElement,
+  React.SelectHTMLAttributes<HTMLSelectElement>
+>(({ className, children, ...props }, ref) => (
+  <select ref={ref} className={cn(CONTROL, 'h-10 pr-8', className)} {...props}>
+    {children}
+  </select>
+));
 Select.displayName = 'Select';
 
 /**
@@ -144,8 +178,14 @@ Select.displayName = 'Select';
  * caller never handles a formatted string or a float.
  */
 export function MoneyInput({
-  value, onChange, currency = "so'm", ...props
-}: { value: number; onChange: (value: number) => void; currency?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  value,
+  onChange,
+  currency = "so'm",
+  ...props
+}: { value: number; onChange: (value: number) => void; currency?: string } & Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+>) {
   const display = value === 0 ? '' : value.toLocaleString('ru-RU').replace(/ /g, ' ');
 
   return (
@@ -171,17 +211,33 @@ export function MoneyInput({
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-xl border border-line bg-surface-raised shadow-card', className)} {...props}>
+    <div
+      className={cn('rounded-xl border border-line bg-surface-raised shadow-card', className)}
+      {...props}
+    >
       {children}
     </div>
   );
 }
 
-export function CardHeader({ title, description, action, className }: {
-  title: React.ReactNode; description?: React.ReactNode; action?: React.ReactNode; className?: string;
+export function CardHeader({
+  title,
+  description,
+  action,
+  className,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-4 border-b border-line px-5 py-4', className)}>
+    <div
+      className={cn(
+        'flex items-start justify-between gap-4 border-b border-line px-5 py-4',
+        className,
+      )}
+    >
       <div className="min-w-0">
         <h3 className="truncate font-semibold text-content">{title}</h3>
         {description && <p className="mt-0.5 text-sm text-content-muted">{description}</p>}
@@ -202,14 +258,23 @@ const BADGE_TONES: Record<BadgeTone, string> = {
   brand: 'bg-brand-subtle text-brand border-brand/20',
 };
 
-export function Badge({ tone = 'neutral', className, children }: {
-  tone?: BadgeTone; className?: string; children: React.ReactNode;
+export function Badge({
+  tone = 'neutral',
+  className,
+  children,
+}: {
+  tone?: BadgeTone;
+  className?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <span className={cn(
-      'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
-      BADGE_TONES[tone], className,
-    )}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
+        BADGE_TONES[tone],
+        className,
+      )}
+    >
       {children}
     </span>
   );
@@ -228,12 +293,28 @@ export function Skeleton({ className }: { className?: string }) {
  * action that fills it. "No customers yet — they will appear here once your bot is live"
  * tells the owner the system is working; a blank table tells them it is broken.
  */
-export function EmptyState({ icon, title, description, action, className }: {
-  icon?: React.ReactNode; title: string; description?: string; action?: React.ReactNode; className?: string;
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  className,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)}>
-      {icon && <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-sunken text-content-subtle">{icon}</div>}
+    <div
+      className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)}
+    >
+      {icon && (
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-sunken text-content-subtle">
+          {icon}
+        </div>
+      )}
       <p className="font-medium text-content">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-content-muted">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
@@ -241,14 +322,26 @@ export function EmptyState({ icon, title, description, action, className }: {
   );
 }
 
-export function ErrorState({ message, onRetry, retryLabel = 'Qayta urinish' }: {
-  message: string; onRetry?: () => void; retryLabel?: string;
+export function ErrorState({
+  message,
+  onRetry,
+  retryLabel = 'Qayta urinish',
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
 }) {
   return (
     <div role="alert" className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-critical/10 text-critical">!</div>
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-critical/10 text-critical">
+        !
+      </div>
       <p className="text-sm text-content">{message}</p>
-      {onRetry && <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>{retryLabel}</Button>}
+      {onRetry && (
+        <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
+          {retryLabel}
+        </Button>
+      )}
     </div>
   );
 }

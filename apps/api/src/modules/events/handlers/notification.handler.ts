@@ -32,7 +32,9 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
     private readonly dispatcher: EventDispatcher,
   ) {}
 
-  onModuleInit() { this.dispatcher.register(this); }
+  onModuleInit() {
+    this.dispatcher.register(this);
+  }
 
   async handle(event: EmittedEvent): Promise<void> {
     const p = event.payload as Record<string, unknown>;
@@ -41,7 +43,8 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
 
     const tenant = await this.prisma.client.tenant.findFirstOrThrow();
     const customer = await this.prisma.client.customer.findFirst({
-      where: { id: customerId }, select: { language: true },
+      where: { id: customerId },
+      select: { language: true },
     });
     const lang = (customer?.language as Language) ?? 'uz';
     const money = (n: unknown) => formatMoney(Number(n ?? 0), tenant.currency as never, lang);
@@ -49,7 +52,9 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
     switch (event.type) {
       case DomainEventType.ORDER_CREATED:
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: 'ORDER_CREATED',
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: 'ORDER_CREATED',
           variables: { orderNumber: String(p.orderNumber), total: money(p.total) },
         });
         break;
@@ -58,12 +63,18 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
         // Only the transitions a customer cares about. Notifying on every internal step
         // trains people to ignore the bot.
         const key = {
-          ACCEPTED: 'ORDER_ACCEPTED', PREPARING: 'ORDER_ACCEPTED', READY: 'ORDER_READY',
-          DELIVERING: 'ORDER_DELIVERING', COMPLETED: 'ORDER_COMPLETED', CANCELLED: 'ORDER_CANCELLED',
+          ACCEPTED: 'ORDER_ACCEPTED',
+          PREPARING: 'ORDER_ACCEPTED',
+          READY: 'ORDER_READY',
+          DELIVERING: 'ORDER_DELIVERING',
+          COMPLETED: 'ORDER_COMPLETED',
+          CANCELLED: 'ORDER_CANCELLED',
         }[String(p.to)];
         if (!key) return;
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: key,
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: key,
           variables: { orderNumber: String(p.orderNumber), status: String(p.to) },
         });
         break;
@@ -78,12 +89,18 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
 
         const local = this.localParts(booking.startsAt, tenant.timezone);
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: 'BOOKING_CREATED',
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: 'BOOKING_CREATED',
           bookingId: booking.id,
           variables: {
-            service: (booking.serviceNameSnapshot as Record<string, string>)?.[lang]
-              ?? (booking.serviceNameSnapshot as Record<string, string>)?.uz ?? '',
-            date: local.date, time: local.time, employee: booking.resource.name,
+            service:
+              (booking.serviceNameSnapshot as Record<string, string>)?.[lang] ??
+              (booking.serviceNameSnapshot as Record<string, string>)?.uz ??
+              '',
+            date: local.date,
+            time: local.time,
+            employee: booking.resource.name,
           },
         });
 
@@ -94,7 +111,9 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
       case DomainEventType.BOOKING_CANCELLED: {
         const local = this.localParts(new Date(String(p.startsAt)), tenant.timezone);
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: 'BOOKING_CANCELLED',
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: 'BOOKING_CANCELLED',
           bookingId: p.bookingId as string,
           variables: { date: local.date, time: local.time },
         });
@@ -105,14 +124,18 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
 
       case DomainEventType.PAYMENT_SUCCEEDED:
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: 'PAYMENT_SUCCESS',
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: 'PAYMENT_SUCCESS',
           variables: { amount: money(p.amount) },
         });
         break;
 
       case DomainEventType.LOYALTY_EARNED:
         await this.notifications.send({
-          tenantId: event.tenantId, customerId, templateKey: 'LOYALTY_EARNED',
+          tenantId: event.tenantId,
+          customerId,
+          templateKey: 'LOYALTY_EARNED',
           variables: { amount: money(p.amount), balance: money(p.balance) },
         });
         break;
@@ -129,8 +152,8 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
    */
   private async scheduleReminders(tenantId: string, bookingId: string, startsAt: Date) {
     const settings = await this.prisma.client.tenantSettings.findFirst();
-    const offsets = ((settings?.bookingSettings as { reminderOffsetsMinutes?: number[] })?.reminderOffsetsMinutes)
-      ?? [1440, 120];
+    const offsets = (settings?.bookingSettings as { reminderOffsetsMinutes?: number[] })
+      ?.reminderOffsetsMinutes ?? [1440, 120];
 
     for (const minutes of offsets) {
       const runAt = new Date(startsAt.getTime() - minutes * 60_000);
@@ -155,10 +178,17 @@ export class NotificationHandler implements EventHandler, OnModuleInit {
 
   private localParts(instant: Date, timezone: string) {
     const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     });
-    const parts = Object.fromEntries(formatter.formatToParts(instant).map((p) => [p.type, p.value]));
+    const parts = Object.fromEntries(
+      formatter.formatToParts(instant).map((p) => [p.type, p.value]),
+    );
     return {
       date: `${parts.day}.${parts.month}.${parts.year}`,
       time: `${parts.hour}:${parts.minute}`,

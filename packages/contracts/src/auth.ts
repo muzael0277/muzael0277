@@ -49,10 +49,12 @@ export const acceptInviteSchema = z.object({
 });
 
 /** Mini App session bootstrap — the raw initData string is verified server-side. */
-export const telegramAuthSchema = z.object({
-  initData: z.string().min(1).max(8192),
-  tenantSlug: z.string().min(1).max(64).optional(),
-  tenantId: idSchema.optional(),
-}).refine((v) => v.tenantSlug || v.tenantId, {
-  message: 'tenantSlug or tenantId is required',
-});
+export const telegramAuthSchema = z
+  .object({
+    initData: z.string().min(1).max(8192),
+    tenantSlug: z.string().min(1).max(64).optional(),
+    tenantId: idSchema.optional(),
+  })
+  .refine((v) => v.tenantSlug || v.tenantId, {
+    message: 'tenantSlug or tenantId is required',
+  });

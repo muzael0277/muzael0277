@@ -34,8 +34,12 @@ export class TenantCache {
     private readonly redis: RedisService,
   ) {}
 
-  private key(tenantId: string) { return `tenant:${tenantId}`; }
-  private slugKey(slug: string) { return `tenant:slug:${slug}`; }
+  private key(tenantId: string) {
+    return `tenant:${tenantId}`;
+  }
+  private slugKey(slug: string) {
+    return `tenant:slug:${slug}`;
+  }
 
   async getTenant(tenantId: string): Promise<CachedTenant | null> {
     const cached = await this.redis.remember(this.key(tenantId), TenantCache.TTL_SECONDS, () =>
@@ -64,9 +68,17 @@ export class TenantCache {
       this.prisma.raw.tenant.findUnique({
         where: where as { id: string },
         select: {
-          id: true, slug: true, name: true, status: true, templateKey: true,
-          timezone: true, currency: true, defaultLanguage: true, primaryColor: true,
-          logoUrl: true, deletedAt: true,
+          id: true,
+          slug: true,
+          name: true,
+          status: true,
+          templateKey: true,
+          timezone: true,
+          currency: true,
+          defaultLanguage: true,
+          primaryColor: true,
+          logoUrl: true,
+          deletedAt: true,
           modules: { where: { enabled: true }, select: { module: true } },
         },
       }),

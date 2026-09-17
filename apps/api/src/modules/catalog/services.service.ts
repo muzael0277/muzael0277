@@ -20,14 +20,18 @@ export class ServicesService {
     return this.prisma.client.service.findMany({
       where: {
         archivedAt: null,
-        ...(query.isActive !== undefined ? { isActive: query.isActive === 'true' || query.isActive === true } : {}),
+        ...(query.isActive !== undefined
+          ? { isActive: query.isActive === 'true' || query.isActive === true }
+          : {}),
         ...(query.categoryId ? { categoryId: query.categoryId as string } : {}),
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: {
         category: { select: { id: true, name: true } },
         employeeServices: {
-          include: { employee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
+          include: {
+            employee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          },
         },
       },
     });
@@ -60,7 +64,10 @@ export class ServicesService {
     });
 
     await this.audit.record({
-      actorUserId, action: 'service.created', entityType: 'SERVICE', entityId: service.id,
+      actorUserId,
+      action: 'service.created',
+      entityType: 'SERVICE',
+      entityId: service.id,
     });
     return this.detail(service.id);
   }
@@ -93,17 +100,25 @@ export class ServicesService {
     // Future bookings would be orphaned by a hard delete, and past ones keep a name
     // snapshot but still reference the service for reporting.
     const upcoming = await this.prisma.client.booking.count({
-      where: { serviceId: id, startsAt: { gt: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+      where: {
+        serviceId: id,
+        startsAt: { gt: new Date() },
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+      },
     });
     if (upcoming > 0) {
       throw new DomainError(ErrorCode.CONFLICT, 'This service has upcoming bookings', { upcoming });
     }
 
     await this.prisma.client.service.update({
-      where: { id }, data: { archivedAt: new Date(), isActive: false },
+      where: { id },
+      data: { archivedAt: new Date(), isActive: false },
     });
     await this.audit.record({
-      actorUserId, action: 'service.archived', entityType: 'SERVICE', entityId: id,
+      actorUserId,
+      action: 'service.archived',
+      entityType: 'SERVICE',
+      entityId: id,
     });
   }
 

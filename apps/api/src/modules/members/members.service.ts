@@ -32,7 +32,9 @@ export class MembersService {
       this.prisma.raw.user.findMany({
         where: { id: { in: members.map((m) => m.userId) } },
         select: {
-          id: true, email: true, lastLoginAt: true,
+          id: true,
+          email: true,
+          lastLoginAt: true,
           profile: { select: { firstName: true, lastName: true, avatarUrl: true } },
         },
       }),
@@ -42,8 +44,13 @@ export class MembersService {
     return members.map((m) => {
       const user = byId.get(m.userId);
       return {
-        id: m.id, userId: m.userId, role: m.role, roleLabel: ROLE_LABELS[m.role as Role],
-        isActive: m.isActive, employeeId: m.employeeId, joinedAt: m.createdAt,
+        id: m.id,
+        userId: m.userId,
+        role: m.role,
+        roleLabel: ROLE_LABELS[m.role as Role],
+        isActive: m.isActive,
+        employeeId: m.employeeId,
+        joinedAt: m.createdAt,
         email: user?.email ?? null,
         firstName: user?.profile?.firstName ?? '',
         lastName: user?.profile?.lastName ?? null,
@@ -60,14 +67,18 @@ export class MembersService {
   ) {
     if (!canAssignRole(actor.role, input.role)) {
       throw new DomainError(ErrorCode.FORBIDDEN, 'You cannot grant a role at or above your own', {
-        yourRole: actor.role, requestedRole: input.role,
+        yourRole: actor.role,
+        requestedRole: input.role,
       });
     }
 
     const email = input.email.toLowerCase();
 
     const existingMember = await this.prisma.system('invite-existing-check', async () => {
-      const user = await this.prisma.raw.user.findUnique({ where: { email }, select: { id: true } });
+      const user = await this.prisma.raw.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
       if (!user) return null;
       return this.prisma.raw.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId, userId: user.id } },
@@ -81,7 +92,9 @@ export class MembersService {
     const token = randomBytes(32).toString('base64url');
     const invite = await this.prisma.client.memberInvite.create({
       data: {
-        tenantId, email, role: input.role,
+        tenantId,
+        email,
+        role: input.role,
         tokenHash: createHash('sha256').update(token).digest('hex'),
         invitedById: actor.userId,
         employeeId: input.employeeId,
@@ -90,8 +103,12 @@ export class MembersService {
     });
 
     await this.audit.record({
-      tenantId, actorUserId: actor.userId, action: 'member.invited',
-      entityType: 'INVITE', entityId: invite.id, after: { email, role: input.role },
+      tenantId,
+      actorUserId: actor.userId,
+      action: 'member.invited',
+      entityType: 'INVITE',
+      entityId: invite.id,
+      after: { email, role: input.role },
     });
 
     // The raw token is returned once so the caller can build the invite link, and is
@@ -109,7 +126,10 @@ export class MembersService {
       where: { id: membershipId, tenantId },
     });
 
-    if (!canAssignRole(actor.role, newRole) || !canAssignRole(actor.role, membership.role as Role)) {
+    if (
+      !canAssignRole(actor.role, newRole) ||
+      !canAssignRole(actor.role, membership.role as Role)
+    ) {
       throw new DomainError(ErrorCode.FORBIDDEN, 'You cannot change this member to that role');
     }
 
@@ -123,9 +143,13 @@ export class MembersService {
     });
 
     await this.audit.record({
-      tenantId, actorUserId: actor.userId, action: 'member.role_changed',
-      entityType: 'MEMBERSHIP', entityId: membershipId,
-      before: { role: membership.role }, after: { role: newRole },
+      tenantId,
+      actorUserId: actor.userId,
+      action: 'member.role_changed',
+      entityType: 'MEMBERSHIP',
+      entityId: membershipId,
+      before: { role: membership.role },
+      after: { role: newRole },
     });
     return updated;
   }
@@ -142,8 +166,12 @@ export class MembersService {
 
     await this.prisma.client.tenantMembership.delete({ where: { id: membershipId } });
     await this.audit.record({
-      tenantId, actorUserId: actor.userId, action: 'member.removed',
-      entityType: 'MEMBERSHIP', entityId: membershipId, before: { role: membership.role },
+      tenantId,
+      actorUserId: actor.userId,
+      action: 'member.removed',
+      entityType: 'MEMBERSHIP',
+      entityId: membershipId,
+      before: { role: membership.role },
     });
   }
 

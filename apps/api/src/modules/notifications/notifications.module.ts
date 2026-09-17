@@ -4,7 +4,9 @@ import { BusinessModule } from '../business.module';
 import { NotificationsService } from './notifications.service';
 import { PaymentsService } from '../payments/payments.service';
 import {
-  PaymentWebhookController, CustomerPaymentsController, PaymentsAdminController,
+  PaymentWebhookController,
+  CustomerPaymentsController,
+  PaymentsAdminController,
 } from '../payments/payments.controller';
 import { TimelineProjector } from '../events/handlers/timeline.handler';
 import { LoyaltyAccrualHandler } from '../events/handlers/loyalty-accrual.handler';
@@ -30,7 +32,9 @@ import { IntegrationsController } from '../integrations/integrations.controller'
     IntegrationsService,
   ],
   controllers: [
-    PaymentWebhookController, CustomerPaymentsController, PaymentsAdminController,
+    PaymentWebhookController,
+    CustomerPaymentsController,
+    PaymentsAdminController,
     IntegrationsController,
   ],
   exports: [NotificationsService, PaymentsService, IntegrationsService],

@@ -58,7 +58,10 @@ export class TelegramClient {
     });
 
     const body = (await response.json()) as {
-      ok: boolean; result?: T; error_code?: number; description?: string;
+      ok: boolean;
+      result?: T;
+      error_code?: number;
+      description?: string;
       parameters?: { retry_after?: number };
     };
 
@@ -73,7 +76,9 @@ export class TelegramClient {
     return body.result as T;
   }
 
-  getMe() { return this.call<TgBotInfo>('getMe'); }
+  getMe() {
+    return this.call<TgBotInfo>('getMe');
+  }
 
   sendMessage(chatId: number | string, text: string, options?: TgSendMessageOptions) {
     return this.call<{ message_id: number }>('sendMessage', {
@@ -86,30 +91,51 @@ export class TelegramClient {
     });
   }
 
-  editMessageText(chatId: number | string, messageId: number, text: string, replyMarkup?: TgReplyMarkup) {
+  editMessageText(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    replyMarkup?: TgReplyMarkup,
+  ) {
     return this.call('editMessageText', {
-      chat_id: chatId, message_id: messageId, text, parse_mode: 'HTML', reply_markup: replyMarkup,
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup,
     });
   }
 
   answerCallbackQuery(callbackQueryId: string, text?: string, showAlert = false) {
-    return this.call('answerCallbackQuery', { callback_query_id: callbackQueryId, text, show_alert: showAlert });
+    return this.call('answerCallbackQuery', {
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: showAlert,
+    });
   }
 
   setWebhook(url: string, secretToken: string, allowedUpdates?: string[]) {
     return this.call<boolean>('setWebhook', {
       url,
       secret_token: secretToken,
-      allowed_updates: allowedUpdates ?? ['message', 'callback_query', 'my_chat_member', 'pre_checkout_query'],
+      allowed_updates: allowedUpdates ?? [
+        'message',
+        'callback_query',
+        'my_chat_member',
+        'pre_checkout_query',
+      ],
       drop_pending_updates: false,
     });
   }
 
-  deleteWebhook() { return this.call<boolean>('deleteWebhook', { drop_pending_updates: false }); }
+  deleteWebhook() {
+    return this.call<boolean>('deleteWebhook', { drop_pending_updates: false });
+  }
 
   getUpdates(offset?: number, timeoutSeconds = 25) {
     return this.call<TgUpdate[]>('getUpdates', {
-      offset, timeout: timeoutSeconds,
+      offset,
+      timeout: timeoutSeconds,
       allowed_updates: ['message', 'callback_query', 'my_chat_member'],
     });
   }

@@ -1,8 +1,20 @@
 import { z } from 'zod';
-import { idSchema, dateOnlySchema, paginationSchema, timeOfDaySchema, phoneSchema } from './primitives';
+import {
+  idSchema,
+  dateOnlySchema,
+  paginationSchema,
+  timeOfDaySchema,
+  phoneSchema,
+} from './primitives';
 
 export const bookingStatusSchema = z.enum([
-  'PENDING', 'CONFIRMED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW',
+  'PENDING',
+  'CONFIRMED',
+  'ARRIVED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
 ]);
 
 export const availabilityQuerySchema = z.object({
@@ -68,18 +80,26 @@ export const createResourceSchema = z.object({
   bufferBeforeMinutes: z.number().int().min(0).max(240).default(0),
   bufferAfterMinutes: z.number().int().min(0).max(240).default(0),
   isActive: z.boolean().default(true),
-  schedule: z.array(z.object({
-    weekday: z.number().int().min(0).max(6),
-    start: timeOfDaySchema,
-    end: timeOfDaySchema,
-  })).max(21).optional(),
+  schedule: z
+    .array(
+      z.object({
+        weekday: z.number().int().min(0).max(6),
+        start: timeOfDaySchema,
+        end: timeOfDaySchema,
+      }),
+    )
+    .max(21)
+    .optional(),
 });
 
-export const createTimeOffSchema = z.object({
-  resourceId: idSchema,
-  startsAt: z.string().datetime(),
-  endsAt: z.string().datetime(),
-  reason: z.string().trim().max(255).optional(),
-}).refine((v) => new Date(v.startsAt) < new Date(v.endsAt), {
-  message: 'Tugash vaqti boshlanishdan keyin bo‘lishi kerak', path: ['endsAt'],
-});
+export const createTimeOffSchema = z
+  .object({
+    resourceId: idSchema,
+    startsAt: z.string().datetime(),
+    endsAt: z.string().datetime(),
+    reason: z.string().trim().max(255).optional(),
+  })
+  .refine((v) => new Date(v.startsAt) < new Date(v.endsAt), {
+    message: 'Tugash vaqti boshlanishdan keyin bo‘lishi kerak',
+    path: ['endsAt'],
+  });

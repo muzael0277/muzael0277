@@ -14,7 +14,14 @@ import { QueueService } from './queue.service';
 @Global()
 @Module({
   imports: [DiscoveryModule],
-  providers: [PrismaService, RedisService, TenantCache, VaultService, QueueService, RouteAuditService],
+  providers: [
+    PrismaService,
+    RedisService,
+    TenantCache,
+    VaultService,
+    QueueService,
+    RouteAuditService,
+  ],
   exports: [PrismaService, RedisService, TenantCache, VaultService, QueueService],
 })
 export class InfraModule {}

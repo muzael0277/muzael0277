@@ -1,8 +1,12 @@
 import { Body, Controller, Get, Post, Req, Res, HttpCode } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
-  loginSchema, registerSchema, changePasswordSchema, updateProfileSchema,
-  type LoginInput, type RegisterInput,
+  loginSchema,
+  registerSchema,
+  changePasswordSchema,
+  updateProfileSchema,
+  type LoginInput,
+  type RegisterInput,
 } from '@bizbot/contracts';
 import { DomainError, ErrorCode } from '@bizbot/shared';
 import { loadEnv } from '@bizbot/config';
@@ -38,7 +42,10 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.auth.register(dto, { ip: req.ip, userAgent: req.header('user-agent') });
+    const result = await this.auth.register(dto, {
+      ip: req.ip,
+      userAgent: req.header('user-agent'),
+    });
     this.setRefreshCookie(res, result.refreshToken);
     return this.publicShape(result);
   }
@@ -133,8 +140,14 @@ export class AuthController {
             include: {
               tenant: {
                 select: {
-                  id: true, slug: true, name: true, logoUrl: true, status: true,
-                  primaryColor: true, templateKey: true, onboardingStep: true,
+                  id: true,
+                  slug: true,
+                  name: true,
+                  logoUrl: true,
+                  status: true,
+                  primaryColor: true,
+                  templateKey: true,
+                  onboardingStep: true,
                   onboardingCompletedAt: true,
                   modules: { where: { enabled: true }, select: { module: true } },
                 },
@@ -147,17 +160,25 @@ export class AuthController {
 
     return {
       user: {
-        id: user.id, email: user.email, platformRole: user.platformRole,
-        firstName: user.profile?.firstName ?? '', lastName: user.profile?.lastName ?? null,
-        phone: user.profile?.phone ?? null, avatarUrl: user.profile?.avatarUrl ?? null,
+        id: user.id,
+        email: user.email,
+        platformRole: user.platformRole,
+        firstName: user.profile?.firstName ?? '',
+        lastName: user.profile?.lastName ?? null,
+        phone: user.profile?.phone ?? null,
+        avatarUrl: user.profile?.avatarUrl ?? null,
         language: user.profile?.language ?? 'uz',
       },
       tenants: user.memberships
         .filter((m) => m.tenant.status !== 'DELETED')
         .map((m) => ({
-          id: m.tenant.id, slug: m.tenant.slug, name: m.tenant.name,
-          logoUrl: m.tenant.logoUrl, primaryColor: m.tenant.primaryColor,
-          templateKey: m.tenant.templateKey, status: m.tenant.status,
+          id: m.tenant.id,
+          slug: m.tenant.slug,
+          name: m.tenant.name,
+          logoUrl: m.tenant.logoUrl,
+          primaryColor: m.tenant.primaryColor,
+          templateKey: m.tenant.templateKey,
+          status: m.tenant.status,
           role: m.role,
           onboardingStep: m.tenant.onboardingStep,
           onboardingCompleted: m.tenant.onboardingCompletedAt !== null,

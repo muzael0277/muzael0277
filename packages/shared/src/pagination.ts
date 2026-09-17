@@ -21,7 +21,10 @@ export const DEFAULT_PAGE_SIZE = 20;
 
 export function normalizePageParams(input: Partial<PageParams> | undefined): PageParams {
   const page = Math.max(1, Math.floor(input?.page ?? 1));
-  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(input?.pageSize ?? DEFAULT_PAGE_SIZE)));
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Math.floor(input?.pageSize ?? DEFAULT_PAGE_SIZE)),
+  );
   return { page, pageSize };
 }
 

@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  zonedTimeToUtc, localDateString, localWeekday, minutesFromTimeOfDay,
-  timeOfDayFromMinutes, rangesOverlap, timezoneOffsetMinutes,
+  zonedTimeToUtc,
+  localDateString,
+  localWeekday,
+  minutesFromTimeOfDay,
+  timeOfDayFromMinutes,
+  rangesOverlap,
+  timezoneOffsetMinutes,
 } from '../time';
 
 describe('timezone handling', () => {
@@ -11,8 +16,9 @@ describe('timezone handling', () => {
 
   it('converts a local wall clock to the right UTC instant', () => {
     // 10:00 in Tashkent is 05:00 UTC
-    expect(zonedTimeToUtc('2026-09-16', '10:00', 'Asia/Tashkent').toISOString())
-      .toBe('2026-09-16T05:00:00.000Z');
+    expect(zonedTimeToUtc('2026-09-16', '10:00', 'Asia/Tashkent').toISOString()).toBe(
+      '2026-09-16T05:00:00.000Z',
+    );
   });
 
   it('settles DST boundaries in zones that observe it', () => {
@@ -20,7 +26,7 @@ describe('timezone handling', () => {
     const before = zonedTimeToUtc('2026-03-29', '01:00', 'Europe/Berlin');
     const after = zonedTimeToUtc('2026-03-29', '12:00', 'Europe/Berlin');
     expect(before.toISOString()).toBe('2026-03-29T00:00:00.000Z'); // UTC+1
-    expect(after.toISOString()).toBe('2026-03-29T10:00:00.000Z');  // UTC+2
+    expect(after.toISOString()).toBe('2026-03-29T10:00:00.000Z'); // UTC+2
   });
 
   it('derives the local calendar date across the UTC day boundary', () => {

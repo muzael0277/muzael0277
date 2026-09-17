@@ -8,9 +8,7 @@ import { z } from 'zod';
  * anything security-relevant — a missing secret must never silently become "dev-secret".
  */
 
-const booleanish = z
-  .enum(['true', 'false', '1', '0'])
-  .transform((v) => v === 'true' || v === '1');
+const booleanish = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
 
 export const envSchema = z
   .object({
@@ -91,7 +89,8 @@ export const envSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['JWT_REFRESH_SECRET'],
-        message: 'Access and refresh secrets must differ, so a leaked access key cannot mint refresh tokens.',
+        message:
+          'Access and refresh secrets must differ, so a leaked access key cannot mint refresh tokens.',
       });
     }
     if (env.TELEGRAM_MODE === 'webhook' && !env.TELEGRAM_WEBHOOK_BASE_URL) {

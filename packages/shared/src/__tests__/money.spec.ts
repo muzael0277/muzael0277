@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatMoney, parseMoney, applyPercentage, distributeProportionally, sumBig, formatAmount,
+  formatMoney,
+  parseMoney,
+  applyPercentage,
+  distributeProportionally,
+  sumBig,
+  formatAmount,
 } from '../money';
 
 describe('formatMoney', () => {

@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PERMISSIONS, permissionsForRole, effectivePermissions, roleHasPermission,
-  canAssignRole, ROLES,
+  PERMISSIONS,
+  permissionsForRole,
+  effectivePermissions,
+  roleHasPermission,
+  canAssignRole,
+  ROLES,
 } from '../index';
 import {
-  MODULE_DEFINITIONS, missingDependencies, dependentsOf, withDependencies, CORE_MODULES,
+  MODULE_DEFINITIONS,
+  missingDependencies,
+  dependentsOf,
+  withDependencies,
+  CORE_MODULES,
 } from '../modules';
 import { TEMPLATE_DEFINITIONS, recommendTemplate } from '../templates';
 
@@ -109,7 +117,8 @@ describe('module dependencies', () => {
       for (const dep of def.requires) {
         expect(MODULE_DEFINITIONS[dep], `${def.key} -> ${dep}`).toBeDefined();
         // A shippable module must not depend on one that is still coming soon.
-        if (!def.comingSoon) expect(MODULE_DEFINITIONS[dep].comingSoon, `${def.key} -> ${dep}`).toBe(false);
+        if (!def.comingSoon)
+          expect(MODULE_DEFINITIONS[dep].comingSoon, `${def.key} -> ${dep}`).toBe(false);
       }
     }
   });
@@ -119,7 +128,9 @@ describe('business templates', () => {
   it('ships every template with a self-consistent module set', () => {
     for (const template of Object.values(TEMPLATE_DEFINITIONS)) {
       for (const module of template.modules) {
-        expect(missingDependencies(module, template.modules), `${template.key}/${module}`).toEqual([]);
+        expect(missingDependencies(module, template.modules), `${template.key}/${module}`).toEqual(
+          [],
+        );
       }
     }
   });
@@ -136,8 +147,13 @@ describe('business templates', () => {
 describe('smart onboarding', () => {
   it('routes a cafe to the restaurant template', () => {
     const result = recommendTemplate({
-      sellsProducts: true, takesBookings: false, servesFood: true, delivers: true,
-      branchCount: 2, hasEmployeeSchedules: false, tracksStock: true,
+      sellsProducts: true,
+      takesBookings: false,
+      servesFood: true,
+      delivers: true,
+      branchCount: 2,
+      hasEmployeeSchedules: false,
+      tracksStock: true,
     });
     expect(result.template).toBe('RESTAURANT');
     expect(result.modules).toContain('DELIVERY');
@@ -147,8 +163,13 @@ describe('smart onboarding', () => {
 
   it('routes a barbershop to the beauty template', () => {
     const result = recommendTemplate({
-      sellsProducts: false, takesBookings: true, servesFood: false, delivers: false,
-      branchCount: 1, hasEmployeeSchedules: true, tracksStock: false,
+      sellsProducts: false,
+      takesBookings: true,
+      servesFood: false,
+      delivers: false,
+      branchCount: 1,
+      hasEmployeeSchedules: true,
+      tracksStock: false,
     });
     expect(result.template).toBe('BEAUTY');
     expect(result.modules).toContain('BOOKING');
@@ -157,8 +178,13 @@ describe('smart onboarding', () => {
 
   it('gives a salon that also sells products both booking and a catalog', () => {
     const result = recommendTemplate({
-      sellsProducts: true, takesBookings: true, servesFood: false, delivers: false,
-      branchCount: 1, hasEmployeeSchedules: true, tracksStock: false,
+      sellsProducts: true,
+      takesBookings: true,
+      servesFood: false,
+      delivers: false,
+      branchCount: 1,
+      hasEmployeeSchedules: true,
+      tracksStock: false,
     });
     expect(result.template).toBe('BEAUTY');
     expect(result.modules).toContain('BOOKING');
@@ -175,11 +201,18 @@ describe('smart onboarding', () => {
             for (const hasEmployeeSchedules of bools)
               for (const tracksStock of bools) {
                 const { modules } = recommendTemplate({
-                  sellsProducts, takesBookings, servesFood, delivers,
-                  branchCount: 1, hasEmployeeSchedules, tracksStock,
+                  sellsProducts,
+                  takesBookings,
+                  servesFood,
+                  delivers,
+                  branchCount: 1,
+                  hasEmployeeSchedules,
+                  tracksStock,
                 });
                 for (const m of modules) {
-                  expect(missingDependencies(m, modules), JSON.stringify({ m, modules })).toEqual([]);
+                  expect(missingDependencies(m, modules), JSON.stringify({ m, modules })).toEqual(
+                    [],
+                  );
                 }
               }
   });

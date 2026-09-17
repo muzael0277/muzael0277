@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
-  TEMPLATE_DEFINITIONS, withDependencies, missingDependencies, dependentsOf,
-  MODULE_DEFINITIONS, CORE_MODULES,
-  type BusinessTemplateKey, type ModuleKey,
+  TEMPLATE_DEFINITIONS,
+  withDependencies,
+  missingDependencies,
+  dependentsOf,
+  MODULE_DEFINITIONS,
+  CORE_MODULES,
+  type BusinessTemplateKey,
+  type ModuleKey,
 } from '@bizbot/rbac';
 import { DomainError, ErrorCode, slugify, type I18nValue } from '@bizbot/shared';
 import type { CreateTenantInput } from '@bizbot/contracts';
@@ -54,8 +59,11 @@ export class TenantsService {
                 phone: input.phone,
                 workingHours: defaultWorkingHours() as Prisma.InputJsonValue,
                 deliverySettings: (template.moduleConfig.DELIVERY ?? {}) as Prisma.InputJsonValue,
-                bookingSettings: (template.moduleConfig.BOOKING ?? defaultBookingSettings()) as Prisma.InputJsonValue,
-                loyaltySettings: (template.moduleConfig.LOYALTY ?? { enabled: false }) as Prisma.InputJsonValue,
+                bookingSettings: (template.moduleConfig.BOOKING ??
+                  defaultBookingSettings()) as Prisma.InputJsonValue,
+                loyaltySettings: (template.moduleConfig.LOYALTY ?? {
+                  enabled: false,
+                }) as Prisma.InputJsonValue,
               },
             },
             modules: {
@@ -77,8 +85,12 @@ export class TenantsService {
     );
 
     await this.audit.record({
-      tenantId: tenant.id, actorUserId: userId, action: 'tenant.created',
-      entityType: 'TENANT', entityId: tenant.id, after: { name: tenant.name, templateKey },
+      tenantId: tenant.id,
+      actorUserId: userId,
+      action: 'tenant.created',
+      entityType: 'TENANT',
+      entityId: tenant.id,
+      after: { name: tenant.name, templateKey },
     });
 
     return this.detail(tenant.id);
@@ -92,23 +104,38 @@ export class TenantsService {
           settings: true,
           modules: { orderBy: { module: 'asc' } },
           subscription: { include: { plan: { include: { features: true } } } },
-          _count: { select: { customers: true, orders: true, bookings: true, products: true, services: true } },
+          _count: {
+            select: {
+              customers: true,
+              orders: true,
+              bookings: true,
+              products: true,
+              services: true,
+            },
+          },
         },
       }),
     );
 
     return {
-      id: tenant.id, slug: tenant.slug, name: tenant.name,
-      templateKey: tenant.templateKey, status: tenant.status,
-      logoUrl: tenant.logoUrl, primaryColor: tenant.primaryColor,
-      timezone: tenant.timezone, currency: tenant.currency,
+      id: tenant.id,
+      slug: tenant.slug,
+      name: tenant.name,
+      templateKey: tenant.templateKey,
+      status: tenant.status,
+      logoUrl: tenant.logoUrl,
+      primaryColor: tenant.primaryColor,
+      timezone: tenant.timezone,
+      currency: tenant.currency,
       defaultLanguage: tenant.defaultLanguage,
       onboardingStep: tenant.onboardingStep,
       onboardingCompleted: tenant.onboardingCompletedAt !== null,
       isDemo: tenant.isDemo,
       settings: tenant.settings,
       modules: tenant.modules.map((m) => ({
-        module: m.module, enabled: m.enabled, config: m.config,
+        module: m.module,
+        enabled: m.enabled,
+        config: m.config,
         label: MODULE_DEFINITIONS[m.module as ModuleKey]?.label,
         core: MODULE_DEFINITIONS[m.module as ModuleKey]?.core ?? false,
       })),
@@ -132,7 +159,13 @@ export class TenantsService {
 
     await this.cache.invalidate(tenantId, before.slug);
     await this.audit.recordChange(
-      { tenantId, actorUserId: userId, action: 'tenant.updated', entityType: 'TENANT', entityId: tenantId },
+      {
+        tenantId,
+        actorUserId: userId,
+        action: 'tenant.updated',
+        entityType: 'TENANT',
+        entityId: tenantId,
+      },
       before as unknown as Record<string, unknown>,
       after as unknown as Record<string, unknown>,
     );
@@ -140,12 +173,20 @@ export class TenantsService {
   }
 
   async updateSettings(tenantId: string, userId: string, data: Record<string, unknown>) {
-    const before = await this.prisma.client.tenantSettings.findUniqueOrThrow({ where: { tenantId } });
+    const before = await this.prisma.client.tenantSettings.findUniqueOrThrow({
+      where: { tenantId },
+    });
     const after = await this.prisma.client.tenantSettings.update({ where: { tenantId }, data });
 
     await this.cache.invalidate(tenantId);
     await this.audit.recordChange(
-      { tenantId, actorUserId: userId, action: 'tenant.settings_updated', entityType: 'TENANT_SETTINGS', entityId: tenantId },
+      {
+        tenantId,
+        actorUserId: userId,
+        action: 'tenant.settings_updated',
+        entityType: 'TENANT_SETTINGS',
+        entityId: tenantId,
+      },
       before as unknown as Record<string, unknown>,
       after as unknown as Record<string, unknown>,
     );
@@ -158,7 +199,9 @@ export class TenantsService {
     const definition = MODULE_DEFINITIONS[module];
     if (!definition) throw new DomainError(ErrorCode.VALIDATION_FAILED, 'Unknown module');
     if (definition.comingSoon) {
-      throw new DomainError(ErrorCode.MODULE_NOT_AVAILABLE, 'This module is not available yet', { module });
+      throw new DomainError(ErrorCode.MODULE_NOT_AVAILABLE, 'This module is not available yet', {
+        module,
+      });
     }
 
     const rows = await this.prisma.client.tenantModule.findMany({ where: { tenantId } });
@@ -167,20 +210,28 @@ export class TenantsService {
     if (enabled) {
       const missing = missingDependencies(module, currentlyEnabled);
       if (missing.length > 0) {
-        throw new DomainError(ErrorCode.MODULE_DEPENDENCY_MISSING, 'Enable the modules this one depends on first', {
-          module, requires: missing,
-        });
+        throw new DomainError(
+          ErrorCode.MODULE_DEPENDENCY_MISSING,
+          'Enable the modules this one depends on first',
+          {
+            module,
+            requires: missing,
+          },
+        );
       }
     } else {
       if (definition.core) {
-        throw new DomainError(ErrorCode.MODULE_IS_CORE, 'Core modules cannot be disabled', { module });
+        throw new DomainError(ErrorCode.MODULE_IS_CORE, 'Core modules cannot be disabled', {
+          module,
+        });
       }
       // Refuse to strand a dependent module, and say which one — a bare "cannot disable"
       // leaves the owner guessing.
       const dependents = dependentsOf(module, currentlyEnabled);
       if (dependents.length > 0) {
         throw new DomainError(ErrorCode.MODULE_HAS_DEPENDENTS, 'Other modules depend on this one', {
-          module, dependents,
+          module,
+          dependents,
         });
       }
     }
@@ -193,9 +244,11 @@ export class TenantsService {
 
     await this.cache.invalidate(tenantId);
     await this.audit.record({
-      tenantId, actorUserId: userId,
+      tenantId,
+      actorUserId: userId,
       action: enabled ? 'module.enabled' : 'module.disabled',
-      entityType: 'MODULE', entityId: module,
+      entityType: 'MODULE',
+      entityId: module,
     });
 
     // Disabling never deletes data, so re-enabling restores the tenant's history.
@@ -226,13 +279,14 @@ export class TenantsService {
       where: { id: tenantId },
       data: {
         onboardingStep: step,
-        ...(complete
-          ? { onboardingCompletedAt: new Date(), status: 'ACTIVE' as const }
-          : {}),
+        ...(complete ? { onboardingCompletedAt: new Date(), status: 'ACTIVE' as const } : {}),
       },
     });
     await this.cache.invalidate(tenantId, tenant.slug);
-    return { onboardingStep: tenant.onboardingStep, completed: tenant.onboardingCompletedAt !== null };
+    return {
+      onboardingStep: tenant.onboardingStep,
+      completed: tenant.onboardingCompletedAt !== null,
+    };
   }
 
   /**
@@ -249,7 +303,10 @@ export class TenantsService {
    */
   async purge(tenantId: string, actorUserId: string | null, reason: string) {
     await this.audit.record({
-      actorUserId, action: 'tenant.purged', entityType: 'TENANT', entityId: tenantId,
+      actorUserId,
+      action: 'tenant.purged',
+      entityType: 'TENANT',
+      entityId: tenantId,
       after: { reason },
     });
 
@@ -292,7 +349,9 @@ export class TenantsService {
     if (seed.categories?.length) {
       await tx.category.createMany({
         data: seed.categories.map((name, i) => ({
-          tenantId, name: name as unknown as Prisma.InputJsonValue, sortOrder: i,
+          tenantId,
+          name: name as unknown as Prisma.InputJsonValue,
+          sortOrder: i,
         })),
       });
     }
@@ -320,21 +379,38 @@ export class TenantsService {
 
   private async createSystemSegments(tx: Prisma.TransactionClient, tenantId: string) {
     const segments: { key: string; name: I18nValue; filter: unknown }[] = [
-      { key: 'new_customers', name: { uz: 'Yangi mijozlar', ru: 'Новые клиенты' },
-        filter: { all: [{ field: 'orderCount', op: 'lte', value: 1 }] } },
-      { key: 'repeat_customers', name: { uz: 'Qaytgan mijozlar', ru: 'Повторные клиенты' },
-        filter: { all: [{ field: 'orderCount', op: 'gte', value: 2 }] } },
-      { key: 'vip', name: { uz: 'VIP mijozlar', ru: 'VIP-клиенты' },
-        filter: { all: [{ field: 'totalSpent', op: 'gte', value: 1_000_000 }] } },
-      { key: 'inactive_30d', name: { uz: '30 kun faol emas', ru: 'Неактивны 30 дней' },
-        filter: { all: [{ field: 'lastActivityAt', op: 'daysAgoGt', value: 30 }] } },
-      { key: 'birthday_today', name: { uz: 'Bugun tug‘ilgan kun', ru: 'День рождения сегодня' },
-        filter: { all: [{ field: 'birthDate', op: 'monthDayEq', value: 'today' }] } },
+      {
+        key: 'new_customers',
+        name: { uz: 'Yangi mijozlar', ru: 'Новые клиенты' },
+        filter: { all: [{ field: 'orderCount', op: 'lte', value: 1 }] },
+      },
+      {
+        key: 'repeat_customers',
+        name: { uz: 'Qaytgan mijozlar', ru: 'Повторные клиенты' },
+        filter: { all: [{ field: 'orderCount', op: 'gte', value: 2 }] },
+      },
+      {
+        key: 'vip',
+        name: { uz: 'VIP mijozlar', ru: 'VIP-клиенты' },
+        filter: { all: [{ field: 'totalSpent', op: 'gte', value: 1_000_000 }] },
+      },
+      {
+        key: 'inactive_30d',
+        name: { uz: '30 kun faol emas', ru: 'Неактивны 30 дней' },
+        filter: { all: [{ field: 'lastActivityAt', op: 'daysAgoGt', value: 30 }] },
+      },
+      {
+        key: 'birthday_today',
+        name: { uz: 'Bugun tug‘ilgan kun', ru: 'День рождения сегодня' },
+        filter: { all: [{ field: 'birthDate', op: 'monthDayEq', value: 'today' }] },
+      },
     ];
 
     await tx.customerSegment.createMany({
       data: segments.map((s) => ({
-        tenantId, key: s.key, isSystem: true,
+        tenantId,
+        key: s.key,
+        isSystem: true,
         name: s.name as Prisma.InputJsonValue,
         filter: s.filter as Prisma.InputJsonValue,
       })),
@@ -346,7 +422,9 @@ export class TenantsService {
     if (!plan) return; // plans are seeded; a fresh install without them still works
     await tx.subscription.create({
       data: {
-        tenantId, planId: plan.id, status: 'TRIALING',
+        tenantId,
+        planId: plan.id,
+        status: 'TRIALING',
         currentPeriodEnd: new Date(Date.now() + plan.trialDays * 86400_000),
       },
     });
@@ -361,8 +439,12 @@ function defaultWorkingHours() {
 
 function defaultBookingSettings() {
   return {
-    slotStepMinutes: 15, minLeadTimeMinutes: 60, maxAdvanceDays: 30,
-    autoConfirm: true, requirePrepayment: false, cancellationDeadlineMinutes: 120,
+    slotStepMinutes: 15,
+    minLeadTimeMinutes: 60,
+    maxAdvanceDays: 30,
+    autoConfirm: true,
+    requirePrepayment: false,
+    cancellationDeadlineMinutes: 120,
     reminderOffsetsMinutes: [1440, 120],
   };
 }

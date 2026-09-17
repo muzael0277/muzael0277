@@ -11,15 +11,17 @@ export const slugSchema = z
   .max(48)
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug may contain lowercase letters, digits and hyphens');
 
-export const languageSchema = z.enum(LANGUAGES as unknown as [string, ...string[]]).pipe(
-  z.custom<(typeof LANGUAGES)[number]>(),
-);
+export const languageSchema = z
+  .enum(LANGUAGES as unknown as [string, ...string[]])
+  .pipe(z.custom<(typeof LANGUAGES)[number]>());
 
 /** Translated text. At least one language must be present and non-empty. */
 export const i18nTextSchema = z
-  .object({ uz: z.string().trim().min(1).max(500).optional(),
-            ru: z.string().trim().min(1).max(500).optional(),
-            en: z.string().trim().min(1).max(500).optional() })
+  .object({
+    uz: z.string().trim().min(1).max(500).optional(),
+    ru: z.string().trim().min(1).max(500).optional(),
+    en: z.string().trim().min(1).max(500).optional(),
+  })
   .refine((v) => Object.values(v).some((s) => s && s.length > 0), {
     message: 'At least one language is required',
   });
@@ -77,7 +79,9 @@ export const sortOrderSchema = z.enum(['asc', 'desc']).default('desc');
 
 export const timeRangeSchema = z
   .object({ start: timeOfDaySchema, end: timeOfDaySchema })
-  .refine((v) => v.start < v.end, { message: 'Boshlanish vaqti tugash vaqtidan oldin bo‘lishi kerak' });
+  .refine((v) => v.start < v.end, {
+    message: 'Boshlanish vaqti tugash vaqtidan oldin bo‘lishi kerak',
+  });
 
 /** Working hours keyed by weekday 0..6 (0 = Sunday). An empty array means closed. */
 export const workingHoursSchema = z.record(

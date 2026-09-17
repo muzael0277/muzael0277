@@ -22,7 +22,9 @@ export class LoyaltyAccrualHandler implements EventHandler, OnModuleInit {
     private readonly dispatcher: EventDispatcher,
   ) {}
 
-  onModuleInit() { this.dispatcher.register(this); }
+  onModuleInit() {
+    this.dispatcher.register(this);
+  }
 
   async handle(event: EmittedEvent): Promise<void> {
     const { orderId, customerId } = event.payload as { orderId: string; customerId: string };
@@ -38,7 +40,10 @@ export class LoyaltyAccrualHandler implements EventHandler, OnModuleInit {
 
     await this.prisma.client.$transaction((tx) =>
       this.loyalty.accrueForOrder(tx, {
-        tenantId: event.tenantId, customerId, orderId, amount: order.loyaltyEarned,
+        tenantId: event.tenantId,
+        customerId,
+        orderId,
+        amount: order.loyaltyEarned,
       }),
     );
   }

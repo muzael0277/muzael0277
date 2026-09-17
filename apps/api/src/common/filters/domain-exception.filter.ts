@@ -67,7 +67,10 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
     // A tenant-guard error means the *code* is wrong, not the request. It must never be
     // shown to a client, and it should wake someone up.
-    if (exception instanceof MissingTenantContextError || exception instanceof CrossTenantWriteError) {
+    if (
+      exception instanceof MissingTenantContextError ||
+      exception instanceof CrossTenantWriteError
+    ) {
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         code: ErrorCode.INTERNAL,
@@ -85,12 +88,17 @@ export class DomainExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const payload = exception.getResponse();
       const code =
-        status === 401 ? ErrorCode.UNAUTHENTICATED
-        : status === 403 ? ErrorCode.FORBIDDEN
-        : status === 404 ? ErrorCode.NOT_FOUND
-        : status === 429 ? ErrorCode.RATE_LIMITED
-        : status >= 500 ? ErrorCode.INTERNAL
-        : ErrorCode.VALIDATION_FAILED;
+        status === 401
+          ? ErrorCode.UNAUTHENTICATED
+          : status === 403
+            ? ErrorCode.FORBIDDEN
+            : status === 404
+              ? ErrorCode.NOT_FOUND
+              : status === 429
+                ? ErrorCode.RATE_LIMITED
+                : status >= 500
+                  ? ErrorCode.INTERNAL
+                  : ErrorCode.VALIDATION_FAILED;
       return {
         status,
         code,
@@ -109,32 +117,42 @@ export class DomainExceptionFilter implements ExceptionFilter {
     } as const;
   }
 
-  private classifyPrisma(error: Prisma.PrismaClientKnownRequestError, language: 'uz' | 'ru' | 'en') {
+  private classifyPrisma(
+    error: Prisma.PrismaClientKnownRequestError,
+    language: 'uz' | 'ru' | 'en',
+  ) {
     switch (error.code) {
       case 'P2002': // unique constraint
         return {
-          status: HttpStatus.CONFLICT, code: ErrorCode.CONFLICT,
+          status: HttpStatus.CONFLICT,
+          code: ErrorCode.CONFLICT,
           message: this.localize(ErrorCode.CONFLICT, language),
           details: { fields: (error.meta?.target as string[]) ?? [] },
           logLevel: 'info',
         } as const;
       case 'P2025': // record not found — most often a tenant-scoped update that matched nothing
         return {
-          status: HttpStatus.NOT_FOUND, code: ErrorCode.NOT_FOUND,
+          status: HttpStatus.NOT_FOUND,
+          code: ErrorCode.NOT_FOUND,
           message: this.localize(ErrorCode.NOT_FOUND, language),
-          details: undefined, logLevel: 'info',
+          details: undefined,
+          logLevel: 'info',
         } as const;
       case 'P2003': // foreign key — frequently a cross-tenant relationship attempt
         return {
-          status: HttpStatus.CONFLICT, code: ErrorCode.CONFLICT,
+          status: HttpStatus.CONFLICT,
+          code: ErrorCode.CONFLICT,
           message: this.localize(ErrorCode.CONFLICT, language),
-          details: undefined, logLevel: 'info',
+          details: undefined,
+          logLevel: 'info',
         } as const;
       default:
         return {
-          status: HttpStatus.INTERNAL_SERVER_ERROR, code: ErrorCode.INTERNAL,
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          code: ErrorCode.INTERNAL,
           message: this.localize(ErrorCode.INTERNAL, language),
-          details: undefined, logLevel: 'error',
+          details: undefined,
+          logLevel: 'error',
         } as const;
     }
   }

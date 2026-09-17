@@ -9,12 +9,22 @@
     "./styles.css": "./src/styles.css",
     "./tailwind-preset": "./tailwind-preset.js"
   },
-  "scripts": { "build": "echo 'consumed as source by Next.js transpilePackages'", "clean": "rm -rf dist" },
+  "scripts": {
+    "build": "echo 'consumed as source by Next.js transpilePackages'",
+    "clean": "rm -rf dist"
+  },
   "dependencies": {
     "@bizbot/shared": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.6.0"
   },
-  "peerDependencies": { "react": "^18.3.1", "react-dom": "^18.3.1" },
-  "devDependencies": { "@types/react": "^18.3.17", "react": "^18.3.1", "typescript": "^5.7.2" }
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.17",
+    "react": "^18.3.1",
+    "typescript": "^5.7.2"
+  }
 }

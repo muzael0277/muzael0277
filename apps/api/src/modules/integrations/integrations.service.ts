@@ -28,7 +28,9 @@ export class IntegrationsService {
 
   /** The catalogue the admin UI renders, merged with what this tenant has configured. */
   async list() {
-    const configured = await this.prisma.client.integration.findMany({ orderBy: { provider: 'asc' } });
+    const configured = await this.prisma.client.integration.findMany({
+      orderBy: { provider: 'asc' },
+    });
     const byKey = new Map(configured.map((i) => [`${i.type}:${i.provider}`, i]));
 
     const catalogue = availableProviders()
@@ -62,7 +64,8 @@ export class IntegrationsService {
   async upsert(
     actorUserId: string,
     input: {
-      type: string; provider: string;
+      type: string;
+      provider: string;
       config?: Record<string, unknown>;
       secrets?: Record<string, string>;
       isEnabled?: boolean;
@@ -86,7 +89,8 @@ export class IntegrationsService {
       const missing = provider.requiredCredentials.filter((key) => !provided.has(key));
       if (missing.length > 0) {
         throw new DomainError(ErrorCode.VALIDATION_FAILED, 'This provider needs more credentials', {
-          provider: input.provider, missing,
+          provider: input.provider,
+          missing,
         });
       }
     }
@@ -105,7 +109,9 @@ export class IntegrationsService {
     const integration = await this.prisma.client.integration.upsert({
       where: {
         tenantId_type_provider: {
-          tenantId: tenant.id, type: input.type as never, provider: input.provider,
+          tenantId: tenant.id,
+          type: input.type as never,
+          provider: input.provider,
         },
       },
       create: {
@@ -114,8 +120,10 @@ export class IntegrationsService {
         config: (input.config ?? {}) as never,
         isEnabled: input.isEnabled ?? true,
         status: sealed ? 'CONNECTED' : 'DISCONNECTED',
-        secretCipher: sealed?.cipher, secretIv: sealed?.iv,
-        secretTag: sealed?.tag, keyVersion: sealed?.keyVersion ?? 1,
+        secretCipher: sealed?.cipher,
+        secretIv: sealed?.iv,
+        secretTag: sealed?.tag,
+        keyVersion: sealed?.keyVersion ?? 1,
       } as never,
       update: {
         config: (input.config ?? existing?.config ?? {}) as never,
@@ -124,8 +132,10 @@ export class IntegrationsService {
         lastError: null,
         ...(sealed
           ? {
-              secretCipher: sealed.cipher, secretIv: sealed.iv,
-              secretTag: sealed.tag, keyVersion: sealed.keyVersion,
+              secretCipher: sealed.cipher,
+              secretIv: sealed.iv,
+              secretTag: sealed.tag,
+              keyVersion: sealed.keyVersion,
             }
           : {}),
       },
@@ -133,10 +143,14 @@ export class IntegrationsService {
 
     // Changing payment credentials is exactly the action an investigation asks about.
     await this.audit.record({
-      tenantId: tenant.id, actorUserId, action: 'integration.updated',
-      entityType: 'INTEGRATION', entityId: integration.id,
+      tenantId: tenant.id,
+      actorUserId,
+      action: 'integration.updated',
+      entityType: 'INTEGRATION',
+      entityId: integration.id,
       after: {
-        provider: input.provider, type: input.type,
+        provider: input.provider,
+        type: input.type,
         credentialsChanged: Object.keys(input.secrets ?? {}),
       },
     });
@@ -148,14 +162,26 @@ export class IntegrationsService {
     const integration = await this.prisma.client.integration.findFirstOrThrow({ where: { id } });
     await this.prisma.client.integration.delete({ where: { id } });
     await this.audit.record({
-      tenantId: integration.tenantId, actorUserId, action: 'integration.removed',
-      entityType: 'INTEGRATION', entityId: id, before: { provider: integration.provider },
+      tenantId: integration.tenantId,
+      actorUserId,
+      action: 'integration.removed',
+      entityType: 'INTEGRATION',
+      entityId: id,
+      before: { provider: integration.provider },
     });
   }
 
   private present(integration: {
-    id: string; type: string; provider: string; status: string; isEnabled: boolean; config: unknown;
-    secretCipher: string | null; secretIv: string | null; secretTag: string | null; keyVersion: number;
+    id: string;
+    type: string;
+    provider: string;
+    status: string;
+    isEnabled: boolean;
+    config: unknown;
+    secretCipher: string | null;
+    secretIv: string | null;
+    secretTag: string | null;
+    keyVersion: number;
   }) {
     return {
       id: integration.id,
@@ -170,7 +196,10 @@ export class IntegrationsService {
   }
 
   private credentialKeys(integration: {
-    secretCipher: string | null; secretIv: string | null; secretTag: string | null; keyVersion: number;
+    secretCipher: string | null;
+    secretIv: string | null;
+    secretTag: string | null;
+    keyVersion: number;
   }): string[] {
     try {
       return Object.keys(this.openCredentials(integration));
@@ -180,12 +209,17 @@ export class IntegrationsService {
   }
 
   private openCredentials(integration: {
-    secretCipher: string | null; secretIv: string | null; secretTag: string | null; keyVersion: number;
+    secretCipher: string | null;
+    secretIv: string | null;
+    secretTag: string | null;
+    keyVersion: number;
   }): Record<string, string> {
     if (!integration.secretCipher || !integration.secretIv || !integration.secretTag) return {};
     return this.vault.openJson({
-      cipher: integration.secretCipher, iv: integration.secretIv,
-      tag: integration.secretTag, keyVersion: integration.keyVersion,
+      cipher: integration.secretCipher,
+      iv: integration.secretIv,
+      tag: integration.secretTag,
+      keyVersion: integration.keyVersion,
     });
   }
 }

@@ -34,7 +34,13 @@ export interface DataTableProps<T> {
  * data arrives — on a dense dashboard that shift is what makes an app feel cheap.
  */
 export function DataTable<T>({
-  columns, rows, rowKey, loading, onRowClick, empty, className,
+  columns,
+  rows,
+  rowKey,
+  loading,
+  onRowClick,
+  empty,
+  className,
 }: DataTableProps<T>) {
   if (!loading && rows.length === 0 && empty) return <>{empty}</>;
 
@@ -50,7 +56,11 @@ export function DataTable<T>({
                 style={column.width ? { width: column.width } : undefined}
                 className={cn(
                   'px-4 py-3 text-xs font-medium uppercase tracking-wide text-content-subtle',
-                  column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
+                  column.align === 'right'
+                    ? 'text-right'
+                    : column.align === 'center'
+                      ? 'text-center'
+                      : 'text-left',
                   column.secondary && 'hidden md:table-cell',
                 )}
               >
@@ -64,7 +74,10 @@ export function DataTable<T>({
             ? Array.from({ length: 6 }, (_, i) => (
                 <tr key={i} className="border-b border-line/60">
                   {columns.map((column) => (
-                    <td key={column.key} className={cn('px-4 py-3.5', column.secondary && 'hidden md:table-cell')}>
+                    <td
+                      key={column.key}
+                      className={cn('px-4 py-3.5', column.secondary && 'hidden md:table-cell')}
+                    >
                       <Skeleton className={column.align === 'right' ? 'ml-auto w-16' : 'w-24'} />
                     </td>
                   ))}
@@ -90,7 +103,8 @@ export function DataTable<T>({
                   }
                   className={cn(
                     'border-b border-line/60 transition',
-                    onRowClick && 'cursor-pointer hover:bg-surface-sunken focus:bg-surface-sunken focus:outline-none',
+                    onRowClick &&
+                      'cursor-pointer hover:bg-surface-sunken focus:bg-surface-sunken focus:outline-none',
                   )}
                 >
                   {columns.map((column) => (
@@ -98,7 +112,11 @@ export function DataTable<T>({
                       key={column.key}
                       className={cn(
                         'px-4 py-3.5 text-content',
-                        column.align === 'right' ? 'text-right tabular' : column.align === 'center' ? 'text-center' : 'text-left',
+                        column.align === 'right'
+                          ? 'text-right tabular'
+                          : column.align === 'center'
+                            ? 'text-center'
+                            : 'text-left',
                         column.secondary && 'hidden md:table-cell',
                       )}
                     >
@@ -115,8 +133,16 @@ export function DataTable<T>({
 
 /* ── Pagination ──────────────────────────────────────────────────────────── */
 
-export function Pagination({ page, totalPages, total, onChange, labels }: {
-  page: number; totalPages: number; total: number;
+export function Pagination({
+  page,
+  totalPages,
+  total,
+  onChange,
+  labels,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
   onChange: (page: number) => void;
   labels?: { previous?: string; next?: string; of?: string };
 }) {
@@ -136,7 +162,9 @@ export function Pagination({ page, totalPages, total, onChange, labels }: {
         >
           {labels?.previous ?? '‹'}
         </button>
-        <span className="px-3 text-sm text-content tabular">{page} / {totalPages}</span>
+        <span className="px-3 text-sm text-content tabular">
+          {page} / {totalPages}
+        </span>
         <button
           type="button"
           onClick={() => onChange(page + 1)}
@@ -152,7 +180,14 @@ export function Pagination({ page, totalPages, total, onChange, labels }: {
 
 /* ── Stat card ───────────────────────────────────────────────────────────── */
 
-export function StatCard({ label, value, change, hint, loading, icon }: {
+export function StatCard({
+  label,
+  value,
+  change,
+  hint,
+  loading,
+  icon,
+}: {
   label: string;
   value: React.ReactNode;
   /** Percentage change against the comparable previous period. */
@@ -175,12 +210,14 @@ export function StatCard({ label, value, change, hint, loading, icon }: {
       )}
 
       {change !== undefined && !loading && (
-        <p className={cn(
-          'mt-2 inline-flex items-center gap-1 text-sm tabular',
-          // Zero is neutral, not "good". Colouring a flat week green is a small lie that
-          // erodes trust in every other number on the page.
-          change > 0 ? 'text-positive' : change < 0 ? 'text-critical' : 'text-content-subtle',
-        )}>
+        <p
+          className={cn(
+            'mt-2 inline-flex items-center gap-1 text-sm tabular',
+            // Zero is neutral, not "good". Colouring a flat week green is a small lie that
+            // erodes trust in every other number on the page.
+            change > 0 ? 'text-positive' : change < 0 ? 'text-critical' : 'text-content-subtle',
+          )}
+        >
           {change > 0 ? '↑' : change < 0 ? '↓' : '→'} {Math.abs(change)}%
           {hint && <span className="text-content-subtle">{hint}</span>}
         </p>
@@ -195,8 +232,14 @@ export function StatCard({ label, value, change, hint, loading, icon }: {
  * A minimal trend line. Deliberately axis-free and label-free: it answers "is this going
  * up or down" at a glance, and anything more belongs on the analytics page.
  */
-export function Sparkline({ points, className, height = 40 }: {
-  points: number[]; className?: string; height?: number;
+export function Sparkline({
+  points,
+  className,
+  height = 40,
+}: {
+  points: number[];
+  className?: string;
+  height?: number;
 }) {
   if (points.length < 2) return <div style={{ height }} className={className} />;
 

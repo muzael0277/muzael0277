@@ -11,12 +11,17 @@ export class BranchesController {
 
   @Get()
   @RequirePermission('branch:read')
-  list() { return this.branches.listBranches(); }
+  list() {
+    return this.branches.listBranches();
+  }
 
   @Post()
   @RequireModule('BRANCHES')
   @RequirePermission('branch:write')
-  create(@CurrentActor() actor: RequestActor, @Body(zodBody(createBranchSchema)) dto: Record<string, unknown>) {
+  create(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createBranchSchema)) dto: Record<string, unknown>,
+  ) {
     return this.branches.createBranch(actor.userId!, dto);
   }
 
@@ -31,7 +36,9 @@ export class BranchesController {
   @RequireModule('BRANCHES')
   @RequirePermission('branch:write')
   @HttpCode(204)
-  remove(@Param('id') id: string) { return this.branches.deleteBranch(id); }
+  remove(@Param('id') id: string) {
+    return this.branches.deleteBranch(id);
+  }
 }
 
 @Controller('t/:tenantId/employees')
@@ -41,11 +48,15 @@ export class EmployeesController {
 
   @Get()
   @RequirePermission('employee:read')
-  list() { return this.branches.listEmployees(); }
+  list() {
+    return this.branches.listEmployees();
+  }
 
   @Get(':id')
   @RequirePermission('employee:read')
-  detail(@Param('id') id: string) { return this.branches.employeeDetail(id); }
+  detail(@Param('id') id: string) {
+    return this.branches.employeeDetail(id);
+  }
 
   @Post()
   @RequirePermission('employee:write')
@@ -62,5 +73,7 @@ export class EmployeesController {
   @Delete(':id')
   @RequirePermission('employee:write')
   @HttpCode(204)
-  deactivate(@Param('id') id: string) { return this.branches.deactivateEmployee(id); }
+  deactivate(@Param('id') id: string) {
+    return this.branches.deactivateEmployee(id);
+  }
 }

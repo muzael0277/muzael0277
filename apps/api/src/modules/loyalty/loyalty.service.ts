@@ -35,7 +35,9 @@ export class LoyaltyService {
     const page = normalizePageParams(query);
     const [items, total] = await Promise.all([
       this.prisma.client.loyaltyTransaction.findMany({
-        where: { accountId: account.id }, orderBy: { createdAt: 'desc' }, ...toSkipTake(page),
+        where: { accountId: account.id },
+        orderBy: { createdAt: 'desc' },
+        ...toSkipTake(page),
       }),
       this.prisma.client.loyaltyTransaction.count({ where: { accountId: account.id } }),
     ]);
@@ -55,16 +57,25 @@ export class LoyaltyService {
       const balanceAfter = account.balance + amount;
       if (balanceAfter < 0) {
         throw new DomainError(ErrorCode.INSUFFICIENT_LOYALTY_BALANCE, undefined, {
-          available: account.balance, requested: Math.abs(amount),
+          available: account.balance,
+          requested: Math.abs(amount),
         });
       }
       return this.post(tx, {
-        account, type: 'ADJUSTMENT', amount, balanceAfter, reason, actorUserId,
+        account,
+        type: 'ADJUSTMENT',
+        amount,
+        balanceAfter,
+        reason,
+        actorUserId,
       });
     });
 
     await this.audit.record({
-      actorUserId, action: 'loyalty.adjusted', entityType: 'CUSTOMER', entityId: customerId,
+      actorUserId,
+      action: 'loyalty.adjusted',
+      entityType: 'CUSTOMER',
+      entityId: customerId,
       after: { amount, reason, balanceAfter: result.balanceAfter },
     });
     return result;
@@ -111,9 +122,12 @@ export class LoyaltyService {
     const account = await this.loadAccountForUpdate(tx, input.customerId);
     try {
       return await this.post(tx, {
-        account, type: 'REFUND', amount: input.amount,
+        account,
+        type: 'REFUND',
+        amount: input.amount,
         balanceAfter: account.balance + input.amount,
-        orderId: input.orderId, reason: 'Buyurtma qaytarildi',
+        orderId: input.orderId,
+        reason: 'Buyurtma qaytarildi',
       });
     } catch (error) {
       if (isUniqueViolation(error)) return null;
@@ -169,12 +183,17 @@ export class LoyaltyService {
     });
 
     if (input.type === 'EARN') {
-      await this.events.emit(tx, DomainEventType.LOYALTY_EARNED, { type: 'CUSTOMER', id: input.account.customerId }, {
-        customerId: input.account.customerId,
-        amount: input.amount,
-        balance: input.balanceAfter,
-        orderId: input.orderId,
-      });
+      await this.events.emit(
+        tx,
+        DomainEventType.LOYALTY_EARNED,
+        { type: 'CUSTOMER', id: input.account.customerId },
+        {
+          customerId: input.account.customerId,
+          amount: input.amount,
+          balance: input.balanceAfter,
+          orderId: input.orderId,
+        },
+      );
     }
 
     return transaction;
@@ -196,10 +215,15 @@ export class LoyaltyService {
   private async loadAccountForUpdate(tx: GuardedTransactionClient, customerId: string) {
     const tenantId = tenantContext.tenantId();
     if (!tenantId) {
-      throw new DomainError(ErrorCode.MISSING_TENANT_CONTEXT, 'Loyalty requires a tenant in context');
+      throw new DomainError(
+        ErrorCode.MISSING_TENANT_CONTEXT,
+        'Loyalty requires a tenant in context',
+      );
     }
 
-    const rows = await tx.$queryRaw<{ id: string; tenantId: string; customerId: string; balance: number }[]>`
+    const rows = await tx.$queryRaw<
+      { id: string; tenantId: string; customerId: string; balance: number }[]
+    >`
       SELECT id, "tenantId", "customerId", balance
       FROM "LoyaltyAccount"
       WHERE "customerId" = ${customerId}
@@ -214,7 +238,9 @@ export class LoyaltyService {
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof error === 'object' && error !== null && 'code' in error &&
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
     (error as { code: string }).code === 'P2002'
   );
 }

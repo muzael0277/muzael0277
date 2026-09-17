@@ -67,21 +67,59 @@ beforeAll(async () => {
   await purgeTenants();
   await raw.user.deleteMany({ where: { id: USER_A } });
 
-  for (const [id, slug] of [[TENANT_A, 'inv-a'], [TENANT_B, 'inv-b']] as const) {
+  for (const [id, slug] of [
+    [TENANT_A, 'inv-a'],
+    [TENANT_B, 'inv-b'],
+  ] as const) {
     await raw.tenant.create({
       data: {
-        id, slug, name: slug, templateKey: 'RESTAURANT', status: 'ACTIVE', currency: 'UZS',
+        id,
+        slug,
+        name: slug,
+        templateKey: 'RESTAURANT',
+        status: 'ACTIVE',
+        currency: 'UZS',
         settings: {
           create: {
-            workingHours: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [String(d), [{ start: '09:00', end: '21:00' }]])),
-            deliverySettings: { enabled: true, flatFee: 15000, freeAbove: 200000, minOrderTotal: 0 },
-            loyaltySettings: { enabled: true, type: 'CASHBACK', rate: 10, minOrderTotal: 0, maxRedeemPercent: 50 },
-            bookingSettings: { slotStepMinutes: 30, minLeadTimeMinutes: 0, maxAdvanceDays: 60, autoConfirm: true, cancellationDeadlineMinutes: 60, reminderOffsetsMinutes: [] },
+            workingHours: Object.fromEntries(
+              [0, 1, 2, 3, 4, 5, 6].map((d) => [String(d), [{ start: '09:00', end: '21:00' }]]),
+            ),
+            deliverySettings: {
+              enabled: true,
+              flatFee: 15000,
+              freeAbove: 200000,
+              minOrderTotal: 0,
+            },
+            loyaltySettings: {
+              enabled: true,
+              type: 'CASHBACK',
+              rate: 10,
+              minOrderTotal: 0,
+              maxRedeemPercent: 50,
+            },
+            bookingSettings: {
+              slotStepMinutes: 30,
+              minLeadTimeMinutes: 0,
+              maxAdvanceDays: 60,
+              autoConfirm: true,
+              cancellationDeadlineMinutes: 60,
+              reminderOffsetsMinutes: [],
+            },
           },
         },
         modules: {
-          create: ['CRM', 'CATALOG', 'SERVICES', 'ORDERS', 'BOOKING', 'LOYALTY', 'PAYMENTS', 'ANALYTICS', 'TELEGRAM', 'EMPLOYEES']
-            .map((module) => ({ module, enabled: true })),
+          create: [
+            'CRM',
+            'CATALOG',
+            'SERVICES',
+            'ORDERS',
+            'BOOKING',
+            'LOYALTY',
+            'PAYMENTS',
+            'ANALYTICS',
+            'TELEGRAM',
+            'EMPLOYEES',
+          ].map((module) => ({ module, enabled: true })),
         },
       },
     });
@@ -89,31 +127,60 @@ beforeAll(async () => {
 
   await raw.user.create({
     data: {
-      id: USER_A, email: 'inv-a@test.local', passwordHash: 'x',
+      id: USER_A,
+      email: 'inv-a@test.local',
+      passwordHash: 'x',
       memberships: { create: { tenantId: TENANT_A, role: 'OWNER' } },
     },
   });
 
-  productA = (await asA(() => catalog.createProduct(USER_A, {
-    name: { uz: 'Test osh' }, price: 50_000, isActive: true,
-  }))).id;
+  productA = (
+    await asA(() =>
+      catalog.createProduct(USER_A, {
+        name: { uz: 'Test osh' },
+        price: 50_000,
+        isActive: true,
+      }),
+    )
+  ).id;
 
-  customerA = (await raw.customer.create({
-    data: { tenantId: TENANT_A, firstName: 'Aziz', loyaltyAccount: { create: { tenantId: TENANT_A } } },
-  })).id;
-  customerB = (await raw.customer.create({
-    data: { tenantId: TENANT_B, firstName: 'Rival', loyaltyAccount: { create: { tenantId: TENANT_B } } },
-  })).id;
+  customerA = (
+    await raw.customer.create({
+      data: {
+        tenantId: TENANT_A,
+        firstName: 'Aziz',
+        loyaltyAccount: { create: { tenantId: TENANT_A } },
+      },
+    })
+  ).id;
+  customerB = (
+    await raw.customer.create({
+      data: {
+        tenantId: TENANT_B,
+        firstName: 'Rival',
+        loyaltyAccount: { create: { tenantId: TENANT_B } },
+      },
+    })
+  ).id;
 
-  serviceA = (await asA(() => services.create(USER_A, {
-    name: { uz: 'Soch olish' }, price: 100_000, durationMinutes: 60, isActive: true,
-  }))).id;
+  serviceA = (
+    await asA(() =>
+      services.create(USER_A, {
+        name: { uz: 'Soch olish' },
+        price: 100_000,
+        durationMinutes: 60,
+        isActive: true,
+      }),
+    )
+  ).id;
 
-  const employee = await asA(() => branches.createEmployee(USER_A, {
-    firstName: 'Jamshid',
-    serviceIds: [serviceA],
-    schedule: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, start: '09:00', end: '21:00' })),
-  }));
+  const employee = await asA(() =>
+    branches.createEmployee(USER_A, {
+      firstName: 'Jamshid',
+      serviceIds: [serviceA],
+      schedule: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, start: '09:00', end: '21:00' })),
+    }),
+  );
   resourceA = employee.resource!.id;
 }, 60_000);
 
@@ -140,7 +207,9 @@ describe('I1 — tenant isolation across services', () => {
 
   it('refuses to add another tenant product to a cart', async () => {
     await expect(
-      asB(() => cart.addItem(customerB, { productId: productA, quantity: 1, modifierOptionIds: [] })),
+      asB(() =>
+        cart.addItem(customerB, { productId: productA, quantity: 1, modifierOptionIds: [] }),
+      ),
     ).rejects.toThrow();
   });
 
@@ -155,10 +224,17 @@ describe('I1 — tenant isolation across services', () => {
 
   it('refuses to book another tenant resource', async () => {
     await expect(
-      asB(() => bookings.create(
-        { serviceId: serviceA, resourceId: resourceA, startsAt: nextSlot(), customerId: customerB },
-        { userId: USER_A },
-      )),
+      asB(() =>
+        bookings.create(
+          {
+            serviceId: serviceA,
+            resourceId: resourceA,
+            startsAt: nextSlot(),
+            customerId: customerB,
+          },
+          { userId: USER_A },
+        ),
+      ),
     ).rejects.toThrow();
   });
 });
@@ -167,15 +243,24 @@ describe('I1 — tenant isolation across services', () => {
 
 describe('I2 — the server prices every order', () => {
   it('ignores prices supplied by the client', async () => {
-    const order = await asA(() => orders.createByStaff(USER_A, {
-      customerId: customerA,
-      fulfillmentType: 'PICKUP',
-      paymentMethod: 'CASH',
-      items: [
-        // Every money field here is a lie the client is telling.
-        { productId: productA, quantity: 2, modifierOptionIds: [], price: 1, unitPrice: 1, total: 2 } as never,
-      ],
-    }));
+    const order = await asA(() =>
+      orders.createByStaff(USER_A, {
+        customerId: customerA,
+        fulfillmentType: 'PICKUP',
+        paymentMethod: 'CASH',
+        items: [
+          // Every money field here is a lie the client is telling.
+          {
+            productId: productA,
+            quantity: 2,
+            modifierOptionIds: [],
+            price: 1,
+            unitPrice: 1,
+            total: 2,
+          } as never,
+        ],
+      }),
+    );
 
     expect(order.subtotal).toBe(100_000);
     expect(order.total).toBe(100_000);
@@ -183,10 +268,14 @@ describe('I2 — the server prices every order', () => {
   });
 
   it('keeps a snapshot so a later price change cannot rewrite history', async () => {
-    const order = await asA(() => orders.createByStaff(USER_A, {
-      customerId: customerA, fulfillmentType: 'PICKUP', paymentMethod: 'CASH',
-      items: [{ productId: productA, quantity: 1, modifierOptionIds: [] }],
-    }));
+    const order = await asA(() =>
+      orders.createByStaff(USER_A, {
+        customerId: customerA,
+        fulfillmentType: 'PICKUP',
+        paymentMethod: 'CASH',
+        items: [{ productId: productA, quantity: 1, modifierOptionIds: [] }],
+      }),
+    );
 
     await asA(() => catalog.updateProduct(USER_A, productA, { price: 999_000 }));
 
@@ -198,13 +287,17 @@ describe('I2 — the server prices every order', () => {
   });
 
   it('keeps line totals reconciled with the order total', async () => {
-    const order = await asA(() => orders.createByStaff(USER_A, {
-      customerId: customerA, fulfillmentType: 'PICKUP', paymentMethod: 'CASH',
-      items: [
-        { productId: productA, quantity: 3, modifierOptionIds: [] },
-        { productId: productA, quantity: 1, modifierOptionIds: [] },
-      ],
-    }));
+    const order = await asA(() =>
+      orders.createByStaff(USER_A, {
+        customerId: customerA,
+        fulfillmentType: 'PICKUP',
+        paymentMethod: 'CASH',
+        items: [
+          { productId: productA, quantity: 3, modifierOptionIds: [] },
+          { productId: productA, quantity: 1, modifierOptionIds: [] },
+        ],
+      }),
+    );
     const lineSum = order.items.reduce((sum, i) => sum + i.total, 0);
     expect(lineSum).toBe(order.subtotal - order.discountTotal);
   });
@@ -217,10 +310,12 @@ describe('I3 — a resource cannot be double-booked', () => {
     const startsAt = nextSlot(3);
 
     const attempts = Array.from({ length: 6 }, () =>
-      asA(() => bookings.create(
-        { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
-        { userId: USER_A },
-      )).then(
+      asA(() =>
+        bookings.create(
+          { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
+          { userId: USER_A },
+        ),
+      ).then(
         (booking) => ({ ok: true as const, booking }),
         (error: Error) => ({ ok: false as const, error }),
       ),
@@ -231,41 +326,58 @@ describe('I3 — a resource cannot be double-booked', () => {
     expect(created).toHaveLength(1);
 
     const stored = await raw.booking.count({
-      where: { resourceId: resourceA, startsAt: new Date(startsAt), status: { notIn: ['CANCELLED'] } },
+      where: {
+        resourceId: resourceA,
+        startsAt: new Date(startsAt),
+        status: { notIn: ['CANCELLED'] },
+      },
     });
     expect(stored).toBe(1);
   }, 30_000);
 
   it('rejects an overlapping booking even when the start times differ', async () => {
     const base = nextSlot(5);
-    await asA(() => bookings.create(
-      { serviceId: serviceA, resourceId: resourceA, startsAt: base, customerId: customerA },
-      { userId: USER_A },
-    ));
+    await asA(() =>
+      bookings.create(
+        { serviceId: serviceA, resourceId: resourceA, startsAt: base, customerId: customerA },
+        { userId: USER_A },
+      ),
+    );
 
     // 30 minutes into a 60-minute appointment.
     const overlapping = new Date(new Date(base).getTime() + 30 * 60_000).toISOString();
     await expect(
-      asA(() => bookings.create(
-        { serviceId: serviceA, resourceId: resourceA, startsAt: overlapping, customerId: customerA },
-        { userId: USER_A },
-      )),
+      asA(() =>
+        bookings.create(
+          {
+            serviceId: serviceA,
+            resourceId: resourceA,
+            startsAt: overlapping,
+            customerId: customerA,
+          },
+          { userId: USER_A },
+        ),
+      ),
     ).rejects.toMatchObject({ code: 'BOOKING_SLOT_TAKEN' });
   }, 20_000);
 
   it('frees the slot again when the booking is cancelled', async () => {
     const startsAt = nextSlot(7);
-    const booking = await asA(() => bookings.create(
-      { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
-      { userId: USER_A },
-    ));
+    const booking = await asA(() =>
+      bookings.create(
+        { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
+        { userId: USER_A },
+      ),
+    );
 
     await asA(() => bookings.updateStatus(booking.id, 'CANCELLED', { userId: USER_A }));
 
-    const replacement = await asA(() => bookings.create(
-      { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
-      { userId: USER_A },
-    ));
+    const replacement = await asA(() =>
+      bookings.create(
+        { serviceId: serviceA, resourceId: resourceA, startsAt, customerId: customerA },
+        { userId: USER_A },
+      ),
+    );
     expect(replacement.id).not.toBe(booking.id);
   }, 20_000);
 });
@@ -280,7 +392,8 @@ describe('I5 — a loyalty balance always equals its ledger', () => {
 
     const account = await raw.loyaltyAccount.findFirstOrThrow({ where: { customerId: customerA } });
     const ledger = await raw.loyaltyTransaction.aggregate({
-      where: { accountId: account.id }, _sum: { amount: true },
+      where: { accountId: account.id },
+      _sum: { amount: true },
     });
 
     expect(account.balance).toBe(ledger._sum.amount);
@@ -310,7 +423,8 @@ describe('I5 — a loyalty balance always equals its ledger', () => {
 
     const after = await raw.loyaltyAccount.findFirstOrThrow({ where: { customerId: customerA } });
     const ledger = await raw.loyaltyTransaction.aggregate({
-      where: { accountId: after.id }, _sum: { amount: true },
+      where: { accountId: after.id },
+      _sum: { amount: true },
     });
 
     // Without the FOR UPDATE lock these would read the same balance and lose increments.

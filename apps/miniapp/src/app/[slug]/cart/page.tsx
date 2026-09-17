@@ -3,7 +3,17 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Button, Card, EmptyState, Field, Input, Select, Skeleton, Textarea, useToast } from '@bizbot/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Input,
+  Select,
+  Skeleton,
+  Textarea,
+  useToast,
+} from '@bizbot/ui';
 import { formatMoney } from '@bizbot/shared';
 import { useShop, shopApi, ShopError, shopFetcher } from '@/lib/shop';
 import { BottomNav } from '@/components/nav';
@@ -11,17 +21,29 @@ import { haptic } from '@/lib/telegram';
 
 interface CartSummary {
   cart: {
-    id: string; promoCode: string | null;
+    id: string;
+    promoCode: string | null;
     items: {
-      id: string; productId: string; name: string; variantName: string | null;
-      imageUrl: string | null; quantity: number;
+      id: string;
+      productId: string;
+      name: string;
+      variantName: string | null;
+      imageUrl: string | null;
+      quantity: number;
       modifiers: { optionId: string; name: string; price: number }[];
-      unitPrice: number; modifiersPrice: number; total: number;
+      unitPrice: number;
+      modifiersPrice: number;
+      total: number;
     }[];
   };
   pricing: {
-    subtotal: number; promoDiscount: number; loyaltyDiscount: number;
-    discountTotal: number; deliveryFee: number; total: number; loyaltyEarn: number;
+    subtotal: number;
+    promoDiscount: number;
+    loyaltyDiscount: number;
+    discountTotal: number;
+    deliveryFee: number;
+    total: number;
+    loyaltyEarn: number;
   } | null;
 }
 
@@ -104,7 +126,8 @@ export default function CartPage({ params }: { params: { slug: string } }) {
   if (isLoading) {
     return (
       <div className="space-y-3 p-4">
-        <Skeleton className="h-24" /><Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
         <BottomNav slug={params.slug} />
       </div>
     );
@@ -116,7 +139,9 @@ export default function CartPage({ params }: { params: { slug: string } }) {
         <EmptyState
           title="Savat bo‘sh"
           description="Katalogdan mahsulot tanlang"
-          action={<Button onClick={() => router.push(`/${params.slug}/catalog`)}>Katalogga o‘tish</Button>}
+          action={
+            <Button onClick={() => router.push(`/${params.slug}/catalog`)}>Katalogga o‘tish</Button>
+          }
         />
         <BottomNav slug={params.slug} />
       </div>
@@ -131,11 +156,15 @@ export default function CartPage({ params }: { params: { slug: string } }) {
         {items.map((item) => (
           <Card key={item.id} className="flex gap-3 p-3">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-sunken">
-              {item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}
+              {item.imageUrl && (
+                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{item.name}</p>
-              {item.variantName && <p className="text-xs text-content-subtle">{item.variantName}</p>}
+              {item.variantName && (
+                <p className="text-xs text-content-subtle">{item.variantName}</p>
+              )}
               {item.modifiers.length > 0 && (
                 <p className="text-xs text-content-subtle">
                   {item.modifiers.map((m) => m.name).join(', ')}
@@ -224,7 +253,9 @@ export default function CartPage({ params }: { params: { slug: string } }) {
             placeholder="Promokod"
             className="uppercase"
           />
-          <Button variant="secondary" onClick={applyPromo}>Qo‘llash</Button>
+          <Button variant="secondary" onClick={applyPromo}>
+            Qo‘llash
+          </Button>
         </div>
       </Card>
 
@@ -240,7 +271,9 @@ export default function CartPage({ params }: { params: { slug: string } }) {
           {pricing.loyaltyDiscount > 0 && (
             <Row label="Bonus" value={`−${money(pricing.loyaltyDiscount)}`} tone="positive" />
           )}
-          {pricing.deliveryFee > 0 && <Row label="Yetkazib berish" value={money(pricing.deliveryFee)} />}
+          {pricing.deliveryFee > 0 && (
+            <Row label="Yetkazib berish" value={money(pricing.deliveryFee)} />
+          )}
           <div className="flex justify-between border-t border-line pt-2 text-base font-semibold">
             <span>Jami</span>
             <span className="tabular">{money(pricing.total)}</span>

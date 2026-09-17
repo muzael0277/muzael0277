@@ -61,7 +61,10 @@ export class TokenService {
   }
 
   /** Customer sessions are short-lived and carry their tenant, so they cannot be reused elsewhere. */
-  async issueForCustomer(customer: { id: string; tenantId: string }): Promise<{ accessToken: string; expiresIn: number }> {
+  async issueForCustomer(customer: {
+    id: string;
+    tenantId: string;
+  }): Promise<{ accessToken: string; expiresIn: number }> {
     const accessToken = await this.jwt.signAsync(
       { sub: customer.id, tenantId: customer.tenantId },
       { audience: 'customer', expiresIn: '12h', secret: this.env.JWT_ACCESS_SECRET },
@@ -78,7 +81,9 @@ export class TokenService {
     const stored = await this.prisma.system('rotate-refresh-token', () =>
       this.prisma.raw.refreshToken.findUnique({
         where: { tokenHash },
-        include: { user: { select: { id: true, email: true, platformRole: true, isActive: true } } },
+        include: {
+          user: { select: { id: true, email: true, platformRole: true, isActive: true } },
+        },
       }),
     );
 
@@ -96,7 +101,10 @@ export class TokenService {
         ip: context.ip,
         userAgent: context.userAgent,
       });
-      logger.warn({ userId: stored.userId, familyId: stored.familyId }, 'Refresh token reuse detected');
+      logger.warn(
+        { userId: stored.userId, familyId: stored.familyId },
+        'Refresh token reuse detected',
+      );
       throw new DomainError(ErrorCode.REFRESH_TOKEN_REUSED);
     }
 

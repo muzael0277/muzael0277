@@ -4,10 +4,27 @@
 
 ```ts
 enum Module {
-  CRM, CATALOG, SERVICES, ORDERS, BOOKING, PAYMENTS, DELIVERY, BRANCHES,
-  EMPLOYEES, INVENTORY, LOYALTY, PROMOCODES, MARKETING, MESSAGES,
-  ANALYTICS, TELEGRAM,             // MVP
-  POS, FINANCE, SUPPLIERS, AI, AUTOMATION   // declared, gated off
+  CRM,
+  CATALOG,
+  SERVICES,
+  ORDERS,
+  BOOKING,
+  PAYMENTS,
+  DELIVERY,
+  BRANCHES,
+  EMPLOYEES,
+  INVENTORY,
+  LOYALTY,
+  PROMOCODES,
+  MARKETING,
+  MESSAGES,
+  ANALYTICS,
+  TELEGRAM, // MVP
+  POS,
+  FINANCE,
+  SUPPLIERS,
+  AI,
+  AUTOMATION, // declared, gated off
 }
 ```
 
@@ -54,7 +71,7 @@ A `BusinessTemplate` is a **data row**, not code:
 
 Shipped: `ONLINE_STORE`, `RESTAURANT`, `BEAUTY`, `SERVICE` (clinic/auto/education/
 consulting), `CUSTOM`. A new vertical is a new row — the acceptance test for "is this
-architecture right" is that adding *Hotel* requires no TypeScript.
+architecture right" is that adding _Hotel_ requires no TypeScript.
 
 Applying a template writes `TenantModule` rows, seeds categories/modifier groups and
 custom fields, then **detaches**: the tenant may freely toggle modules afterwards.
@@ -62,7 +79,7 @@ custom fields, then **detaches**: the tenant may freely toggle modules afterward
 
 ## 3. Smart onboarding (Phase 3)
 
-The owner answers plain business questions — *Do customers book appointments? Do you
-deliver? How many branches?* — and `TemplateRecommender` maps answers to a template plus
+The owner answers plain business questions — _Do customers book appointments? Do you
+deliver? How many branches?_ — and `TemplateRecommender` maps answers to a template plus
 module deltas. It is a pure function over an answer map, so it is unit-testable and the
 owner never sees the word "module" unless they open advanced settings.

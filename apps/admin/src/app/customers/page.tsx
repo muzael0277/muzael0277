@@ -10,15 +10,25 @@ import { fetcher } from '@/lib/api';
 import { money, phone, relative } from '@/lib/format';
 
 interface Customer {
-  id: string; firstName: string; lastName: string | null; phone: string | null;
-  telegramUsername: string | null; language: string;
-  totalSpent: string | number; orderCount: number; bookingCount: number;
-  loyaltyBalance: number; lastActivityAt: string; createdAt: string;
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  telegramUsername: string | null;
+  language: string;
+  totalSpent: string | number;
+  orderCount: number;
+  bookingCount: number;
+  loyaltyBalance: number;
+  lastActivityAt: string;
+  createdAt: string;
   tags: { id: string; name: string; color: string }[];
 }
 
 interface Segment {
-  key: string; name: { uz: string; ru: string }; count: number;
+  key: string;
+  name: { uz: string; ru: string };
+  count: number;
 }
 
 export default function CustomersPage() {
@@ -30,7 +40,10 @@ export default function CustomersPage() {
   // Debounced so typing does not fire a request per keystroke.
   const [debounced, setDebounced] = React.useState('');
   React.useEffect(() => {
-    const timer = setTimeout(() => { setDebounced(search); setPage(1); }, 300);
+    const timer = setTimeout(() => {
+      setDebounced(search);
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -38,10 +51,10 @@ export default function CustomersPage() {
   if (debounced) query.set('search', debounced);
   if (segment !== 'all') query.set('segmentKey', segment);
 
-  const { data, isLoading } = useSWR<{ data: Customer[]; meta: { total: number; totalPages: number } }>(
-    tenant ? [`/t/${tenant.id}/customers?${query}`, tenant.id] : null,
-    fetcher,
-  );
+  const { data, isLoading } = useSWR<{
+    data: Customer[];
+    meta: { total: number; totalPages: number };
+  }>(tenant ? [`/t/${tenant.id}/customers?${query}`, tenant.id] : null, fetcher);
 
   const { data: segments } = useSWR<Segment[]>(
     tenant ? [`/t/${tenant.id}/customers/segments`, tenant.id] : null,
@@ -59,7 +72,10 @@ export default function CustomersPage() {
         {/* Segments are stored filters the tenant can edit, not hard-coded tabs. */}
         <Tabs
           active={segment}
-          onChange={(key) => { setSegment(key); setPage(1); }}
+          onChange={(key) => {
+            setSegment(key);
+            setPage(1);
+          }}
           tabs={[
             { key: 'all', label: t(language, 'common.all'), count: data?.meta.total },
             ...(segments ?? []).map((s) => ({
@@ -103,7 +119,9 @@ export default function CustomersPage() {
                       {row.firstName} {row.lastName ?? ''}
                     </p>
                     {row.telegramUsername && (
-                      <p className="truncate text-xs text-content-subtle">@{row.telegramUsername}</p>
+                      <p className="truncate text-xs text-content-subtle">
+                        @{row.telegramUsername}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -111,35 +129,59 @@ export default function CustomersPage() {
             },
             { key: 'phone', header: 'Telefon', secondary: true, render: (row) => phone(row.phone) },
             {
-              key: 'tags', header: 'Teglar', secondary: true,
-              render: (row) => row.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {row.tags.slice(0, 2).map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="rounded px-1.5 py-0.5 text-xs"
-                      style={{ backgroundColor: `${tag.color}1a`, color: tag.color }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                </div>
-              ) : '—',
+              key: 'tags',
+              header: 'Teglar',
+              secondary: true,
+              render: (row) =>
+                row.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {row.tags.slice(0, 2).map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="rounded px-1.5 py-0.5 text-xs"
+                        style={{ backgroundColor: `${tag.color}1a`, color: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  '—'
+                ),
             },
-            { key: 'orders', header: 'Buyurtma', align: 'right', secondary: true, render: (row) => row.orderCount },
             {
-              key: 'spent', header: 'Sarflagan', align: 'right',
+              key: 'orders',
+              header: 'Buyurtma',
+              align: 'right',
+              secondary: true,
+              render: (row) => row.orderCount,
+            },
+            {
+              key: 'spent',
+              header: 'Sarflagan',
+              align: 'right',
               render: (row) => money(row.totalSpent, 'UZS', language),
             },
             {
-              key: 'bonus', header: 'Bonus', align: 'right', secondary: true,
-              render: (row) => row.loyaltyBalance > 0
-                ? <Badge tone="brand">{money(row.loyaltyBalance, 'UZS', language)}</Badge>
-                : '—',
+              key: 'bonus',
+              header: 'Bonus',
+              align: 'right',
+              secondary: true,
+              render: (row) =>
+                row.loyaltyBalance > 0 ? (
+                  <Badge tone="brand">{money(row.loyaltyBalance, 'UZS', language)}</Badge>
+                ) : (
+                  '—'
+                ),
             },
             {
-              key: 'activity', header: 'Faollik', align: 'right', secondary: true,
-              render: (row) => <span className="text-content-muted">{relative(row.lastActivityAt, language)}</span>,
+              key: 'activity',
+              header: 'Faollik',
+              align: 'right',
+              secondary: true,
+              render: (row) => (
+                <span className="text-content-muted">{relative(row.lastActivityAt, language)}</span>
+              ),
             },
           ]}
         />

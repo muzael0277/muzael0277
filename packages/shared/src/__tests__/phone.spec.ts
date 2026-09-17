@@ -5,8 +5,13 @@ describe('parseUzPhone', () => {
   it('normalizes every format a customer might type', () => {
     const expected = '998901234567';
     for (const input of [
-      '+998 90 123 45 67', '998901234567', '901234567', '90 123-45-67',
-      '+998901234567', '8998901234567', '(90) 123 45 67',
+      '+998 90 123 45 67',
+      '998901234567',
+      '901234567',
+      '90 123-45-67',
+      '+998901234567',
+      '8998901234567',
+      '(90) 123 45 67',
     ]) {
       expect(parseUzPhone(input)?.e164, input).toBe(expected);
     }

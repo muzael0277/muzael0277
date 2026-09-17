@@ -67,7 +67,8 @@ export class TelegramGatewayController {
 
     await this.prisma.system('telegram-touch', () =>
       this.prisma.raw.telegramBot.update({
-        where: { id: bot.id }, data: { lastUpdateAt: new Date() },
+        where: { id: bot.id },
+        data: { lastUpdateAt: new Date() },
       }),
     );
 
@@ -78,7 +79,10 @@ export class TelegramGatewayController {
       );
     } catch (error) {
       // Never surface an error to Telegram: it would retry the same update forever.
-      logger.error({ err: error, tenantId: bot.tenantId, updateId: update.update_id }, 'Telegram update failed');
+      logger.error(
+        { err: error, tenantId: bot.tenantId, updateId: update.update_id },
+        'Telegram update failed',
+      );
     }
     return { ok: true };
   }
@@ -95,7 +99,14 @@ export class MiniAppAuthController {
   @Public()
   @Post('telegram')
   @HttpCode(200)
-  authenticate(@Body(zodBody(telegramAuthSchema)) dto: { initData: string; tenantSlug?: string; tenantId?: string }) {
+  authenticate(
+    @Body(zodBody(telegramAuthSchema))
+    dto: {
+      initData: string;
+      tenantSlug?: string;
+      tenantId?: string;
+    },
+  ) {
     return this.auth.authenticate(dto);
   }
 }

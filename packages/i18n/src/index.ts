@@ -28,11 +28,7 @@ function lookup(dict: unknown, path: Path): string | undefined {
  * Falls back to Uzbek and then to the key itself, so a missing translation shows
  * something meaningful rather than an empty string — and is visible in QA.
  */
-export function t(
-  language: Language,
-  key: Path,
-  vars?: Record<string, string | number>,
-): string {
+export function t(language: Language, key: Path, vars?: Record<string, string | number>): string {
   const template = lookup(getDictionary(language), key) ?? lookup(uz, key) ?? key;
   if (!vars) return template;
   return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) =>

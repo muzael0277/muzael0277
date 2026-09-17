@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  createCustomerSchema, updateCustomerSchema, listCustomersSchema,
-  createTagSchema, createNoteSchema, adjustLoyaltySchema,
+  createCustomerSchema,
+  updateCustomerSchema,
+  listCustomersSchema,
+  createTagSchema,
+  createNoteSchema,
+  adjustLoyaltySchema,
 } from '@bizbot/contracts';
 import { zodBody, zodQuery } from '../../common/pipes/zod-validation.pipe';
 import { CurrentActor, RequireModule, RequirePermission } from '../../common/decorators';
@@ -66,14 +70,18 @@ export class CrmController {
   adjustLoyalty(
     @CurrentActor() actor: RequestActor,
     @Param('id') id: string,
-    @Body(zodBody(adjustLoyaltySchema.omit({ customerId: true }))) dto: { amount: number; reason: string },
+    @Body(zodBody(adjustLoyaltySchema.omit({ customerId: true })))
+    dto: { amount: number; reason: string },
   ) {
     return this.loyalty.adjust(actor.userId!, id, dto.amount, dto.reason);
   }
 
   @Post()
   @RequirePermission('customer:write')
-  create(@CurrentActor() actor: RequestActor, @Body(zodBody(createCustomerSchema)) dto: Record<string, unknown>) {
+  create(
+    @CurrentActor() actor: RequestActor,
+    @Body(zodBody(createCustomerSchema)) dto: Record<string, unknown>,
+  ) {
     return this.customers.create(actor.userId!, dto);
   }
 

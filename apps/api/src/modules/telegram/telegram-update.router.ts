@@ -62,7 +62,8 @@ export class TelegramUpdateRouter {
     if (message.contact?.phone_number) {
       const digits = message.contact.phone_number.replace(/\D/g, '');
       await this.prisma.client.customer.update({
-        where: { id: customer.id }, data: { phone: digits },
+        where: { id: customer.id },
+        data: { phone: digits },
       });
       await client.sendMessage(message.chat.id, '✅ Rahmat! Telefon raqamingiz saqlandi.');
       return;
@@ -70,7 +71,8 @@ export class TelegramUpdateRouter {
 
     const text = (message.text ?? '').trim();
 
-    if (text.startsWith('/start')) return this.sendWelcome(tenantId, client, message.chat.id, customer, lang);
+    if (text.startsWith('/start'))
+      return this.sendWelcome(tenantId, client, message.chat.id, customer, lang);
     if (text === '/menu') return this.sendMenu(tenantId, client, message.chat.id, lang);
     if (text === '/orders') return this.sendOrders(client, message.chat.id, customer.id, lang);
     if (text === '/bookings') return this.sendBookings(client, message.chat.id, customer.id, lang);
@@ -93,11 +95,16 @@ export class TelegramUpdateRouter {
 
     const lang = (customer.language as Language) ?? 'uz';
     switch (query.data) {
-      case 'orders': return this.sendOrders(client, query.message.chat.id, customer.id, lang);
-      case 'bookings': return this.sendBookings(client, query.message.chat.id, customer.id, lang);
-      case 'bonus': return this.sendBonus(client, query.message.chat.id, customer.id, lang);
-      case 'branches': return this.sendBranches(client, query.message.chat.id, lang);
-      default: return this.sendMenu(tenantId, client, query.message.chat.id, lang);
+      case 'orders':
+        return this.sendOrders(client, query.message.chat.id, customer.id, lang);
+      case 'bookings':
+        return this.sendBookings(client, query.message.chat.id, customer.id, lang);
+      case 'bonus':
+        return this.sendBonus(client, query.message.chat.id, customer.id, lang);
+      case 'branches':
+        return this.sendBranches(client, query.message.chat.id, lang);
+      default:
+        return this.sendMenu(tenantId, client, query.message.chat.id, lang);
     }
   }
 
@@ -110,7 +117,9 @@ export class TelegramUpdateRouter {
     customer: { id: string; phone: string | null },
     lang: Language,
   ) {
-    const tenant = await this.prisma.client.tenant.findFirstOrThrow({ include: { settings: true } });
+    const tenant = await this.prisma.client.tenant.findFirstOrThrow({
+      include: { settings: true },
+    });
     const description = resolveI18n(tenant.settings?.description as never, lang);
 
     const text = [
@@ -118,18 +127,27 @@ export class TelegramUpdateRouter {
       description,
       '',
       t(lang, 'bot.menuPrompt'),
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
-    await client.sendMessage(chatId, text, { reply_markup: await this.menuKeyboard(tenantId, tenant.slug, lang) });
+    await client.sendMessage(chatId, text, {
+      reply_markup: await this.menuKeyboard(tenantId, tenant.slug, lang),
+    });
 
     // Ask for a phone number once, and only if we do not have one.
     if (!customer.phone) {
-      await client.sendMessage(chatId, '📱 Buyurtma va bronlar uchun telefon raqamingizni yuboring:', {
-        reply_markup: {
-          keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]],
-          resize_keyboard: true, one_time_keyboard: true,
+      await client.sendMessage(
+        chatId,
+        '📱 Buyurtma va bronlar uchun telefon raqamingizni yuboring:',
+        {
+          reply_markup: {
+            keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
         },
-      });
+      );
     }
   }
 
@@ -148,8 +166,12 @@ export class TelegramUpdateRouter {
   /** Built from enabled modules, so the bot never offers a button that leads nowhere. */
   private async menuKeyboard(tenantId: string, tenantSlug: string, lang: Language) {
     const modules = new Set(
-      (await this.prisma.client.tenantModule.findMany({ where: { enabled: true }, select: { module: true } }))
-        .map((m) => m.module),
+      (
+        await this.prisma.client.tenantModule.findMany({
+          where: { enabled: true },
+          select: { module: true },
+        })
+      ).map((m) => m.module),
     );
 
     const rows: { text: string; callback_data?: string; web_app?: { url: string } }[][] = [];
@@ -158,18 +180,22 @@ export class TelegramUpdateRouter {
     rows.push([{ text: t(lang, 'bot.openApp'), web_app: { url: appUrl } }]);
 
     const first: { text: string; callback_data: string }[] = [];
-    if (modules.has('CATALOG')) first.push({ text: t(lang, 'bot.catalog'), callback_data: 'catalog' });
+    if (modules.has('CATALOG'))
+      first.push({ text: t(lang, 'bot.catalog'), callback_data: 'catalog' });
     if (modules.has('BOOKING')) first.push({ text: t(lang, 'bot.book'), callback_data: 'book' });
     if (first.length) rows.push(first);
 
     const second: { text: string; callback_data: string }[] = [];
-    if (modules.has('ORDERS')) second.push({ text: t(lang, 'bot.myOrders'), callback_data: 'orders' });
-    if (modules.has('BOOKING')) second.push({ text: t(lang, 'bot.myBookings'), callback_data: 'bookings' });
+    if (modules.has('ORDERS'))
+      second.push({ text: t(lang, 'bot.myOrders'), callback_data: 'orders' });
+    if (modules.has('BOOKING'))
+      second.push({ text: t(lang, 'bot.myBookings'), callback_data: 'bookings' });
     if (second.length) rows.push(second);
 
     const third: { text: string; callback_data: string }[] = [];
     if (modules.has('LOYALTY')) third.push({ text: t(lang, 'bot.bonus'), callback_data: 'bonus' });
-    if (modules.has('BRANCHES')) third.push({ text: t(lang, 'bot.branches'), callback_data: 'branches' });
+    if (modules.has('BRANCHES'))
+      third.push({ text: t(lang, 'bot.branches'), callback_data: 'branches' });
     if (third.length) rows.push(third);
 
     rows.push([{ text: t(lang, 'bot.operator'), callback_data: 'operator' }]);
@@ -178,28 +204,40 @@ export class TelegramUpdateRouter {
 
   private async sendOrders(
     client: NonNullable<Awaited<ReturnType<TelegramBotService['clientFor']>>>,
-    chatId: number, customerId: string, lang: Language,
+    chatId: number,
+    customerId: string,
+    lang: Language,
   ) {
     const orders = await this.prisma.client.order.findMany({
-      where: { customerId }, orderBy: { createdAt: 'desc' }, take: 5,
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
     });
     if (orders.length === 0) {
       await client.sendMessage(chatId, t(lang, 'empty.orders'));
       return;
     }
-    const lines = orders.map((o) =>
-      `<b>${o.orderNumber}</b> — ${t(lang, `order.statuses.${o.status}`)}\n${formatMoney(o.total, o.currency as never, lang)}`,
+    const lines = orders.map(
+      (o) =>
+        `<b>${o.orderNumber}</b> — ${t(lang, `order.statuses.${o.status}`)}\n${formatMoney(o.total, o.currency as never, lang)}`,
     );
     await client.sendMessage(chatId, lines.join('\n\n'));
   }
 
   private async sendBookings(
     client: NonNullable<Awaited<ReturnType<TelegramBotService['clientFor']>>>,
-    chatId: number, customerId: string, lang: Language,
+    chatId: number,
+    customerId: string,
+    lang: Language,
   ) {
     const bookings = await this.prisma.client.booking.findMany({
-      where: { customerId, startsAt: { gte: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
-      orderBy: { startsAt: 'asc' }, take: 5,
+      where: {
+        customerId,
+        startsAt: { gte: new Date() },
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+      },
+      orderBy: { startsAt: 'asc' },
+      take: 5,
       include: { resource: { select: { name: true } } },
     });
     if (bookings.length === 0) {
@@ -215,7 +253,9 @@ export class TelegramUpdateRouter {
 
   private async sendBonus(
     client: NonNullable<Awaited<ReturnType<TelegramBotService['clientFor']>>>,
-    chatId: number, customerId: string, lang: Language,
+    chatId: number,
+    customerId: string,
+    lang: Language,
   ) {
     const account = await this.prisma.client.loyaltyAccount.findFirst({ where: { customerId } });
     const tenant = await this.prisma.client.tenant.findFirstOrThrow();
@@ -227,36 +267,49 @@ export class TelegramUpdateRouter {
 
   private async sendBranches(
     client: NonNullable<Awaited<ReturnType<TelegramBotService['clientFor']>>>,
-    chatId: number, lang: Language,
+    chatId: number,
+    lang: Language,
   ) {
     const branches = await this.prisma.client.branch.findMany({ where: { isActive: true } });
     if (branches.length === 0) {
       await client.sendMessage(chatId, t(lang, 'empty.search'));
       return;
     }
-    const lines = branches.map((b) =>
-      `📍 <b>${b.name}</b>\n${b.address ?? ''}${b.phone ? `\n☎️ ${b.phone}` : ''}`,
+    const lines = branches.map(
+      (b) => `📍 <b>${b.name}</b>\n${b.address ?? ''}${b.phone ? `\n☎️ ${b.phone}` : ''}`,
     );
     await client.sendMessage(chatId, lines.join('\n\n'));
   }
 
-  private async openConversation(tenantId: string, customerId: string, externalId: number, body: string) {
+  private async openConversation(
+    tenantId: string,
+    customerId: string,
+    externalId: number,
+    body: string,
+  ) {
     const conversation = await this.prisma.client.conversation.upsert({
       where: { tenantId_customerId: { tenantId, customerId } },
       create: {
-        customerId, status: 'OPEN',
-        lastMessageAt: new Date(), lastMessagePreview: body.slice(0, 120), unreadCount: 1,
+        customerId,
+        status: 'OPEN',
+        lastMessageAt: new Date(),
+        lastMessagePreview: body.slice(0, 120),
+        unreadCount: 1,
       } as never,
       update: {
-        status: 'OPEN', lastMessageAt: new Date(),
-        lastMessagePreview: body.slice(0, 120), unreadCount: { increment: 1 },
+        status: 'OPEN',
+        lastMessageAt: new Date(),
+        lastMessagePreview: body.slice(0, 120),
+        unreadCount: { increment: 1 },
       },
     });
 
     await this.prisma.client.message.create({
       data: {
-        conversationId: conversation.id, direction: 'INBOUND',
-        body, externalId: String(externalId),
+        conversationId: conversation.id,
+        direction: 'INBOUND',
+        body,
+        externalId: String(externalId),
       } as never,
     });
   }

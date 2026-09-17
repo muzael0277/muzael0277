@@ -3,7 +3,17 @@
 import * as React from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { Badge, Button, Card, CardHeader, DataTable, EmptyState, ErrorState, Sparkline, StatCard } from '@bizbot/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  Sparkline,
+  StatCard,
+} from '@bizbot/ui';
 import { t } from '@bizbot/i18n';
 import { AppShell, PageHeader } from '@/components/shell';
 import { useSession } from '@/lib/session';
@@ -41,7 +51,9 @@ export default function DashboardPage() {
   const [range, setRange] = React.useState<'today' | 'last7' | 'last30'>('last30');
 
   const { data, error, isLoading, mutate } = useSWR<Dashboard>(
-    tenant && can('analytics:read') ? [`/t/${tenant.id}/analytics/dashboard?preset=${range}`, tenant.id] : null,
+    tenant && can('analytics:read')
+      ? [`/t/${tenant.id}/analytics/dashboard?preset=${range}`, tenant.id]
+      : null,
     fetcher,
   );
 
@@ -71,7 +83,9 @@ export default function DashboardPage() {
                 key={option.key}
                 onClick={() => setRange(option.key)}
                 className={`rounded-md px-3 py-1.5 text-sm transition ${
-                  range === option.key ? 'bg-brand-subtle font-medium text-brand' : 'text-content-muted hover:text-content'
+                  range === option.key
+                    ? 'bg-brand-subtle font-medium text-brand'
+                    : 'text-content-muted hover:text-content'
                 }`}
               >
                 {t(language, option.labelKey)}
@@ -82,7 +96,9 @@ export default function DashboardPage() {
       />
 
       {error ? (
-        <Card><ErrorState message={t(language, 'errors.INTERNAL')} onRetry={() => void mutate()} /></Card>
+        <Card>
+          <ErrorState message={t(language, 'errors.INTERNAL')} onRetry={() => void mutate()} />
+        </Card>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -121,10 +137,13 @@ export default function DashboardPage() {
                 <div
                   key={insight.key}
                   className={`rounded-lg border-l-4 bg-surface-raised p-4 shadow-card ${
-                    insight.severity === 'critical' ? 'border-l-critical'
-                    : insight.severity === 'warning' ? 'border-l-warning'
-                    : insight.severity === 'positive' ? 'border-l-positive'
-                    : 'border-l-info'
+                    insight.severity === 'critical'
+                      ? 'border-l-critical'
+                      : insight.severity === 'warning'
+                        ? 'border-l-warning'
+                        : insight.severity === 'positive'
+                          ? 'border-l-positive'
+                          : 'border-l-info'
                   }`}
                 >
                   <p className="text-sm font-medium text-content">
@@ -180,13 +199,21 @@ export default function DashboardPage() {
               <CardHeader
                 title="Ombor tugayapti"
                 description={`${data.lowStock.length} ta mahsulot`}
-                action={<Link href="/products?lowStock=true"><Button variant="secondary" size="sm">Ko‘rish</Button></Link>}
+                action={
+                  <Link href="/products?lowStock=true">
+                    <Button variant="secondary" size="sm">
+                      Ko‘rish
+                    </Button>
+                  </Link>
+                }
               />
               <div className="divide-y divide-line">
                 {data.lowStock.slice(0, 5).map((item) => (
                   <div key={item.id} className="flex items-center justify-between px-5 py-3">
                     <span className="text-sm">{item.name}</span>
-                    <Badge tone="warning">{item.stockQuantity} / {item.threshold}</Badge>
+                    <Badge tone="warning">
+                      {item.stockQuantity} / {item.threshold}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -197,7 +224,13 @@ export default function DashboardPage() {
             <Card className="mt-4">
               <CardHeader
                 title="So‘nggi buyurtmalar"
-                action={<Link href="/orders"><Button variant="ghost" size="sm">Barchasi →</Button></Link>}
+                action={
+                  <Link href="/orders">
+                    <Button variant="ghost" size="sm">
+                      Barchasi →
+                    </Button>
+                  </Link>
+                }
               />
               <DataTable
                 rows={recentOrders?.data ?? []}
@@ -206,27 +239,47 @@ export default function DashboardPage() {
                 empty={<EmptyState title={t(language, 'empty.orders')} />}
                 columns={[
                   {
-                    key: 'number', header: t(language, 'order.number'),
+                    key: 'number',
+                    header: t(language, 'order.number'),
                     render: (row) => <span className="font-medium tabular">{row.orderNumber}</span>,
                   },
                   {
-                    key: 'customer', header: t(language, 'order.customer'), secondary: true,
-                    render: (row) => row.customer ? `${row.customer.firstName} ${row.customer.lastName ?? ''}` : '—',
+                    key: 'customer',
+                    header: t(language, 'order.customer'),
+                    secondary: true,
+                    render: (row) =>
+                      row.customer
+                        ? `${row.customer.firstName} ${row.customer.lastName ?? ''}`
+                        : '—',
                   },
                   {
-                    key: 'status', header: t(language, 'order.status'),
+                    key: 'status',
+                    header: t(language, 'order.status'),
                     render: (row) => (
-                      <Badge tone={ORDER_STATUS_TONE[row.status as keyof typeof ORDER_STATUS_TONE] ?? 'neutral'}>
+                      <Badge
+                        tone={
+                          ORDER_STATUS_TONE[row.status as keyof typeof ORDER_STATUS_TONE] ??
+                          'neutral'
+                        }
+                      >
                         {t(language, `order.statuses.${row.status}`)}
                       </Badge>
                     ),
                   },
                   {
-                    key: 'created', header: 'Vaqt', secondary: true,
-                    render: (row) => <span className="text-content-muted">{relative(row.createdAt, language)}</span>,
+                    key: 'created',
+                    header: 'Vaqt',
+                    secondary: true,
+                    render: (row) => (
+                      <span className="text-content-muted">
+                        {relative(row.createdAt, language)}
+                      </span>
+                    ),
                   },
                   {
-                    key: 'total', header: t(language, 'order.total'), align: 'right',
+                    key: 'total',
+                    header: t(language, 'order.total'),
+                    align: 'right',
                     render: (row) => money(row.total, currency, language),
                   },
                 ]}

@@ -31,14 +31,18 @@ export class TenantGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(SELF_KEY, handler)) return true;
 
     const request = context.switchToHttp().getRequest<Request>();
-    const isCustomerRoute = this.reflector.getAllAndOverride<boolean>(CUSTOMER_KEY, handler) === true;
+    const isCustomerRoute =
+      this.reflector.getAllAndOverride<boolean>(CUSTOMER_KEY, handler) === true;
 
     const tenantId = isCustomerRoute
       ? await this.tenantFromCustomerSession(request)
       : this.tenantFromRequest(request);
 
     if (!tenantId) {
-      throw new DomainError(ErrorCode.MISSING_TENANT_CONTEXT, 'No tenant specified for this request');
+      throw new DomainError(
+        ErrorCode.MISSING_TENANT_CONTEXT,
+        'No tenant specified for this request',
+      );
     }
 
     const tenant = await this.cache.getTenant(tenantId);

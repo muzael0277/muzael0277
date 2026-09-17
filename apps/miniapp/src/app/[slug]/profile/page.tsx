@@ -12,13 +12,15 @@ export default function ProfilePage({ params }: { params: { slug: string } }) {
   const { data: loyalty } = useSWR<{
     account: { balance: number; lifetimeEarned: string };
     data: { id: string; type: string; amount: number; reason: string | null; createdAt: string }[];
-  }>(
-    shop && hasModule('LOYALTY') ? '/loyalty' : null,
-    shopFetcher,
-  );
+  }>(shop && hasModule('LOYALTY') ? '/loyalty' : null, shopFetcher);
 
   if (!shop) {
-    return <div className="p-4"><Skeleton className="h-32" /><BottomNav slug={params.slug} /></div>;
+    return (
+      <div className="p-4">
+        <Skeleton className="h-32" />
+        <BottomNav slug={params.slug} />
+      </div>
+    );
   }
 
   const money = (value: number | string) =>
@@ -71,8 +73,11 @@ export default function ProfilePage({ params }: { params: { slug: string } }) {
                       {new Date(entry.createdAt).toLocaleDateString('ru-RU')}
                     </p>
                   </div>
-                  <span className={`shrink-0 tabular ${entry.amount > 0 ? 'text-positive' : 'text-content'}`}>
-                    {entry.amount > 0 ? '+' : ''}{money(entry.amount)}
+                  <span
+                    className={`shrink-0 tabular ${entry.amount > 0 ? 'text-positive' : 'text-content'}`}
+                  >
+                    {entry.amount > 0 ? '+' : ''}
+                    {money(entry.amount)}
                   </span>
                 </div>
               ))}

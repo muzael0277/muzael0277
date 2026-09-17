@@ -34,7 +34,11 @@ export class MembersController {
     @CurrentActor() actor: RequestActor,
     @Body(zodBody(inviteMemberSchema)) dto: { email: string; role: Role; employeeId?: string },
   ) {
-    return this.members.invite(tenant.id, { userId: actor.userId!, role: tenant.role as Role }, dto);
+    return this.members.invite(
+      tenant.id,
+      { userId: actor.userId!, role: tenant.role as Role },
+      dto,
+    );
   }
 
   @Patch(':membershipId/role')
@@ -46,7 +50,10 @@ export class MembersController {
     @Body(zodBody(updateMemberRoleSchema)) dto: { role: Role },
   ) {
     return this.members.changeRole(
-      tenant.id, { userId: actor.userId!, role: tenant.role as Role }, membershipId, dto.role,
+      tenant.id,
+      { userId: actor.userId!, role: tenant.role as Role },
+      membershipId,
+      dto.role,
     );
   }
 
@@ -58,6 +65,10 @@ export class MembersController {
     @CurrentActor() actor: RequestActor,
     @Param('membershipId') membershipId: string,
   ) {
-    return this.members.remove(tenant.id, { userId: actor.userId!, role: tenant.role as Role }, membershipId);
+    return this.members.remove(
+      tenant.id,
+      { userId: actor.userId!, role: tenant.role as Role },
+      membershipId,
+    );
   }
 }

@@ -1,7 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type {
-  CreatePaymentResult, PaymentProvider, PaymentStatusResult, ProviderContext,
-  PaymentSubject, RefundResult, WebhookOutcome, WebhookRequest,
+  CreatePaymentResult,
+  PaymentProvider,
+  PaymentStatusResult,
+  ProviderContext,
+  PaymentSubject,
+  RefundResult,
+  WebhookOutcome,
+  WebhookRequest,
 } from '../provider';
 import { PaymentProviderError } from '../provider';
 
@@ -34,16 +40,22 @@ export class MockProvider implements PaymentProvider {
 
   async cancelPayment(): Promise<void> {}
 
-  async refundPayment(_ctx: ProviderContext, _s: PaymentSubject, amount: number): Promise<RefundResult> {
+  async refundPayment(
+    _ctx: ProviderContext,
+    _s: PaymentSubject,
+    amount: number,
+  ): Promise<RefundResult> {
     return { refundedAmount: amount, externalRefundId: `mock_refund_${Date.now()}` };
   }
 
   async verifyWebhook(ctx: ProviderContext, request: WebhookRequest): Promise<void> {
     const secret = ctx.credentials.secret;
-    if (!secret) throw new PaymentProviderError('mock', 'NO_SECRET', 'Mock provider has no secret configured');
+    if (!secret)
+      throw new PaymentProviderError('mock', 'NO_SECRET', 'Mock provider has no secret configured');
 
     const presented = request.headers['x-mock-signature'];
-    if (!presented) throw new PaymentProviderError('mock', 'NO_SIGNATURE', 'Missing signature header');
+    if (!presented)
+      throw new PaymentProviderError('mock', 'NO_SIGNATURE', 'Missing signature header');
 
     const expected = createHmac('sha256', secret).update(request.rawBody).digest('hex');
     const a = Buffer.from(expected, 'utf8');
@@ -55,7 +67,11 @@ export class MockProvider implements PaymentProvider {
 
   async handleWebhook(_ctx: ProviderContext, request: WebhookRequest): Promise<WebhookOutcome> {
     const body = request.parsedBody as {
-      event?: string; paymentId?: string; externalId?: string; amount?: number; eventId?: string;
+      event?: string;
+      paymentId?: string;
+      externalId?: string;
+      amount?: number;
+      eventId?: string;
     };
 
     if (!body?.paymentId || !body.eventId) {

@@ -6,7 +6,9 @@ import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramUpdateRouter } from './telegram-update.router';
 import { TelegramSender } from './telegram-sender.service';
 import {
-  TelegramGatewayController, MiniAppAuthController, TelegramAdminController,
+  TelegramGatewayController,
+  MiniAppAuthController,
+  TelegramAdminController,
 } from './telegram.controller';
 
 @Module({

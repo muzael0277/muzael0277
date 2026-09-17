@@ -59,7 +59,12 @@ function buildScopedModelSet(): Set<string> {
 }
 
 const READ_OPERATIONS = new Set([
-  'findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy',
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
 ]);
 const UNIQUE_READ_OPERATIONS = new Set(['findUnique', 'findUniqueOrThrow']);
 /**
@@ -215,8 +220,16 @@ function stampNestedCreates(
           typeof row === 'object' && row !== null
             ? stampNestedCreates(
                 relatedModel,
-                stampRow(relatedModel, row as Record<string, unknown>, relatedKey, tenantId, operation),
-                tenantId, depth + 1, operation,
+                stampRow(
+                  relatedModel,
+                  row as Record<string, unknown>,
+                  relatedKey,
+                  tenantId,
+                  operation,
+                ),
+                tenantId,
+                depth + 1,
+                operation,
               )
             : row,
         );
@@ -229,7 +242,13 @@ function stampNestedCreates(
             ...row,
             data: (row.data as unknown[]).map((entry) =>
               typeof entry === 'object' && entry !== null
-                ? stampRow(relatedModel, entry as Record<string, unknown>, relatedKey, tenantId, operation)
+                ? stampRow(
+                    relatedModel,
+                    entry as Record<string, unknown>,
+                    relatedKey,
+                    tenantId,
+                    operation,
+                  )
                 : entry,
             ),
           };
@@ -237,7 +256,9 @@ function stampNestedCreates(
           nested[key] = stampNestedCreates(
             relatedModel,
             stampRow(relatedModel, row, relatedKey, tenantId, operation),
-            tenantId, depth + 1, operation,
+            tenantId,
+            depth + 1,
+            operation,
           );
         }
         touched = true;
@@ -367,7 +388,13 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
             if (a.data && typeof a.data === 'object') {
               return query({
                 ...a,
-                data: assertTenantOnData(a.data as Record<string, unknown>, tenantId, model, operation, key),
+                data: assertTenantOnData(
+                  a.data as Record<string, unknown>,
+                  tenantId,
+                  model,
+                  operation,
+                  key,
+                ),
               });
             }
             return query(a);
@@ -381,7 +408,6 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
     },
   });
 }
-
 
 /** Exposed for tests and for the boot-time self-check. */
 export const tenantGuardInternals = {

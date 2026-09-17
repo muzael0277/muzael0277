@@ -32,7 +32,10 @@ let customerA: string;
 beforeAll(async () => {
   await asSystem(async () => {
     await base.tenant.deleteMany({ where: { id: { in: [TENANT_A, TENANT_B] } } });
-    for (const [id, slug] of [[TENANT_A, 'tenant-a'], [TENANT_B, 'tenant-b']] as const) {
+    for (const [id, slug] of [
+      [TENANT_A, 'tenant-a'],
+      [TENANT_B, 'tenant-b'],
+    ] as const) {
       await base.tenant.create({
         data: { id, slug, name: slug, templateKey: 'ONLINE_STORE', status: 'ACTIVE' },
       });
@@ -45,15 +48,21 @@ beforeEach(async () => {
     await base.product.deleteMany({ where: { tenantId: { in: [TENANT_A, TENANT_B] } } });
     await base.customer.deleteMany({ where: { tenantId: { in: [TENANT_A, TENANT_B] } } });
 
-    productA = (await base.product.create({
-      data: { tenantId: TENANT_A, name: { uz: 'A mahsuloti' }, price: 10000 },
-    })).id;
-    productB = (await base.product.create({
-      data: { tenantId: TENANT_B, name: { uz: 'B mahsuloti' }, price: 20000 },
-    })).id;
-    customerA = (await base.customer.create({
-      data: { tenantId: TENANT_A, firstName: 'Aziz' },
-    })).id;
+    productA = (
+      await base.product.create({
+        data: { tenantId: TENANT_A, name: { uz: 'A mahsuloti' }, price: 10000 },
+      })
+    ).id;
+    productB = (
+      await base.product.create({
+        data: { tenantId: TENANT_B, name: { uz: 'B mahsuloti' }, price: 20000 },
+      })
+    ).id;
+    customerA = (
+      await base.customer.create({
+        data: { tenantId: TENANT_A, firstName: 'Aziz' },
+      })
+    ).id;
   });
 });
 
@@ -157,13 +166,9 @@ describe('writes', () => {
   });
 
   it('cannot delete another tenant row', async () => {
-    await expect(
-      asA(() => prisma.product.delete({ where: { id: productB } })),
-    ).rejects.toThrow();
+    await expect(asA(() => prisma.product.delete({ where: { id: productB } }))).rejects.toThrow();
 
-    expect(
-      await asSystem(() => base.product.count({ where: { id: productB } })),
-    ).toBe(1);
+    expect(await asSystem(() => base.product.count({ where: { id: productB } }))).toBe(1);
   });
 
   it('affects zero rows when updateMany targets another tenant', async () => {
@@ -183,9 +188,7 @@ describe('cross-tenant relationships', () => {
   it('refuses to create a cart item pointing at another tenant product', async () => {
     // The subtler leak: the row is written under tenant A but references B's data.
     // The composite (tenantId, productId) foreign key makes the database reject it.
-    const cart = await asA(() =>
-      prisma.cart.create({ data: { customerId: customerA } as never }),
-    );
+    const cart = await asA(() => prisma.cart.create({ data: { customerId: customerA } as never }));
 
     await expect(
       asA(() =>
@@ -281,9 +284,9 @@ describe('composite-unique writes', () => {
       ),
     ).rejects.toThrow();
 
-    expect(
-      await asSystem(() => base.tenantModule.count({ where: { tenantId: TENANT_B } })),
-    ).toBe(0);
+    expect(await asSystem(() => base.tenantModule.count({ where: { tenantId: TENANT_B } }))).toBe(
+      0,
+    );
   });
 
   it('updates by a plain id without an AND wrapper', async () => {
@@ -306,8 +309,9 @@ describe('raw SQL is not covered by the guard', () => {
    * and one was found in the loyalty service exactly this way.
    */
   it('a raw query without a tenant predicate sees every tenant', async () => {
-    const rows = await asA(() =>
-      prisma.$queryRaw<{ id: string }[]>`
+    const rows = await asA(
+      () =>
+        prisma.$queryRaw<{ id: string }[]>`
         SELECT id FROM "Product" WHERE id IN (${productA}, ${productB})
       `,
     );
@@ -316,8 +320,9 @@ describe('raw SQL is not covered by the guard', () => {
   });
 
   it('a raw query with an explicit tenant predicate is correctly scoped', async () => {
-    const rows = await asA(() =>
-      prisma.$queryRaw<{ id: string }[]>`
+    const rows = await asA(
+      () =>
+        prisma.$queryRaw<{ id: string }[]>`
         SELECT id FROM "Product"
         WHERE id IN (${productA}, ${productB})
           AND "tenantId" = ${TENANT_A}
@@ -350,7 +355,9 @@ describe('the Tenant model scopes on its own id', () => {
       asA(() => prisma.tenant.update({ where: { id: TENANT_B }, data: { name: 'Hijacked' } })),
     ).rejects.toThrow();
 
-    const untouched = await asSystem(() => base.tenant.findUniqueOrThrow({ where: { id: TENANT_B } }));
+    const untouched = await asSystem(() =>
+      base.tenant.findUniqueOrThrow({ where: { id: TENANT_B } }),
+    );
     expect(untouched.name).toBe('tenant-b');
   });
 

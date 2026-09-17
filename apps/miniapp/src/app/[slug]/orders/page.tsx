@@ -8,8 +8,13 @@ import { useShop, shopApi, shopFetcher } from '@/lib/shop';
 import { BottomNav } from '@/components/nav';
 
 const TONE = {
-  NEW: 'info', ACCEPTED: 'brand', PREPARING: 'warning', READY: 'positive',
-  DELIVERING: 'brand', COMPLETED: 'positive', CANCELLED: 'critical',
+  NEW: 'info',
+  ACCEPTED: 'brand',
+  PREPARING: 'warning',
+  READY: 'positive',
+  DELIVERING: 'brand',
+  COMPLETED: 'positive',
+  CANCELLED: 'critical',
 } as const;
 
 export default function OrdersPage({ params }: { params: { slug: string } }) {
@@ -22,14 +27,19 @@ export default function OrdersPage({ params }: { params: { slug: string } }) {
   );
 
   const language = shop?.customer.language ?? 'uz';
-  const money = (value: number) => formatMoney(value, (shop?.tenant.currency ?? 'UZS') as never, language);
+  const money = (value: number) =>
+    formatMoney(value, (shop?.tenant.currency ?? 'UZS') as never, language);
 
   return (
     <div className="p-4">
       <h1 className="mb-3 text-lg font-semibold">Buyurtmalarim</h1>
 
       {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
       ) : !data || data.data.length === 0 ? (
         <EmptyState title={t(language, 'empty.orders')} />
       ) : (
@@ -41,7 +51,10 @@ export default function OrdersPage({ params }: { params: { slug: string } }) {
                   <p className="font-medium tabular">{order.orderNumber}</p>
                   <p className="mt-0.5 text-xs text-content-subtle">
                     {new Date(order.createdAt).toLocaleString('ru-RU', {
-                      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
                     })}
                   </p>
                 </div>
@@ -66,6 +79,10 @@ export default function OrdersPage({ params }: { params: { slug: string } }) {
 }
 
 interface Order {
-  id: string; orderNumber: string; status: string; fulfillmentType: string;
-  total: number; createdAt: string;
+  id: string;
+  orderNumber: string;
+  status: string;
+  fulfillmentType: string;
+  total: number;
+  createdAt: string;
 }

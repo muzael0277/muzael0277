@@ -1,6 +1,12 @@
 import {
-  minutesFromTimeOfDay, timeOfDayFromMinutes, zonedTimeToUtc, localWeekday,
-  localDateString, rangesOverlap, type TimeRange, type Weekday,
+  minutesFromTimeOfDay,
+  timeOfDayFromMinutes,
+  zonedTimeToUtc,
+  localWeekday,
+  localDateString,
+  rangesOverlap,
+  type TimeRange,
+  type Weekday,
 } from '@bizbot/shared';
 
 /**
@@ -65,15 +71,19 @@ export interface AvailableSlot {
 }
 
 export function computeAvailability(request: AvailabilityRequest): AvailableSlot[] {
-  const weekday = localWeekday(zonedTimeToUtc(request.date, '12:00', request.timezone), request.timezone);
+  const weekday = localWeekday(
+    zonedTimeToUtc(request.date, '12:00', request.timezone),
+    request.timezone,
+  );
 
   // 1. Business hours, then narrowed by branch hours if the branch sets its own.
   const businessWindows = request.businessHours;
   if (businessWindows.length === 0) return [];
 
-  const branchWindows = request.branchHours.length > 0
-    ? intersectRanges(businessWindows, request.branchHours)
-    : businessWindows;
+  const branchWindows =
+    request.branchHours.length > 0
+      ? intersectRanges(businessWindows, request.branchHours)
+      : businessWindows;
   if (branchWindows.length === 0) return [];
 
   // 2. Narrowed again by the resource's own shifts for this weekday. Multiple rows per
@@ -88,8 +98,14 @@ export function computeAvailability(request: AvailabilityRequest): AvailableSlot
 
   // 3. The appointment occupies duration plus buffers. Where a service and a resource
   //    both declare a buffer, the larger wins — they are minimums, not additive.
-  const bufferBefore = Math.max(request.serviceBufferBeforeMinutes, request.resourceBufferBeforeMinutes);
-  const bufferAfter = Math.max(request.serviceBufferAfterMinutes, request.resourceBufferAfterMinutes);
+  const bufferBefore = Math.max(
+    request.serviceBufferBeforeMinutes,
+    request.resourceBufferBeforeMinutes,
+  );
+  const bufferAfter = Math.max(
+    request.serviceBufferAfterMinutes,
+    request.resourceBufferAfterMinutes,
+  );
   const blockMinutes = bufferBefore + request.serviceDurationMinutes + bufferAfter;
 
   const earliestStart = new Date(request.now.getTime() + request.minLeadTimeMinutes * 60_000);
@@ -127,7 +143,10 @@ export function computeAvailability(request: AvailabilityRequest): AvailableSlot
       if (collides) continue;
 
       slots.push({
-        startsAt, endsAt, blockStartsAt, blockEndsAt,
+        startsAt,
+        endsAt,
+        blockStartsAt,
+        blockEndsAt,
         label: timeOfDayFromMinutes(minute),
       });
     }
@@ -157,23 +176,23 @@ export function intersectRanges(a: TimeRange[], b: TimeRange[]): TimeRange[] {
     for (const rangeB of b) {
       const start = Math.max(startA, minutesFromTimeOfDay(rangeB.start));
       const end = Math.min(endA, minutesFromTimeOfDay(rangeB.end));
-      if (start < end) result.push({ start: timeOfDayFromMinutes(start), end: timeOfDayFromMinutes(end) });
+      if (start < end)
+        result.push({ start: timeOfDayFromMinutes(start), end: timeOfDayFromMinutes(end) });
     }
   }
   return result.sort((x, y) => minutesFromTimeOfDay(x.start) - minutesFromTimeOfDay(y.start));
 }
 
 /** The weekday's ranges from a tenant/branch workingHours JSON blob. */
-export function hoursForWeekday(
-  workingHours: unknown,
-  weekday: Weekday,
-): TimeRange[] {
+export function hoursForWeekday(workingHours: unknown, weekday: Weekday): TimeRange[] {
   if (!workingHours || typeof workingHours !== 'object') return [];
   const day = (workingHours as Record<string, unknown>)[String(weekday)];
   if (!Array.isArray(day)) return [];
   return day.filter(
     (r): r is TimeRange =>
-      typeof r === 'object' && r !== null && typeof (r as TimeRange).start === 'string' &&
+      typeof r === 'object' &&
+      r !== null &&
+      typeof (r as TimeRange).start === 'string' &&
       typeof (r as TimeRange).end === 'string',
   );
 }

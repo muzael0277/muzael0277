@@ -119,7 +119,10 @@ export class PricingService {
     // Spread the order-level discount across lines so the sum of lines always equals the
     // order subtotal less the discount. Naive per-line rounding loses or invents so'm,
     // and then a receipt does not add up.
-    const shares = distributeProportionally(discountTotal, lines.map((l) => l.lineSubtotal));
+    const shares = distributeProportionally(
+      discountTotal,
+      lines.map((l) => l.lineSubtotal),
+    );
     lines.forEach((line, i) => {
       line.discount = shares[i] ?? 0;
       line.total = line.lineSubtotal - line.discount;
@@ -150,9 +153,13 @@ export class PricingService {
     if (effectiveUnitPrice < 0) {
       // A variant delta that drives the price below zero is a configuration error, and
       // silently clamping it would hide a pricing mistake until it reached a receipt.
-      throw new DomainError(ErrorCode.VALIDATION_FAILED, 'Variant price modifier produces a negative price', {
-        productId: line.productId,
-      });
+      throw new DomainError(
+        ErrorCode.VALIDATION_FAILED,
+        'Variant price modifier produces a negative price',
+        {
+          productId: line.productId,
+        },
+      );
     }
 
     const modifiersPrice = line.modifiers.reduce((sum, m) => sum + m.price, 0);
@@ -176,7 +183,9 @@ export class PricingService {
     if (!promo) return 0;
     if (subtotal < promo.minOrderTotal) {
       throw new DomainError(ErrorCode.PROMO_NOT_APPLICABLE, undefined, {
-        code: promo.code, minOrderTotal: promo.minOrderTotal, subtotal,
+        code: promo.code,
+        minOrderTotal: promo.minOrderTotal,
+        subtotal,
       });
     }
 
@@ -194,9 +203,14 @@ export class PricingService {
       case 'BUY_X_GET_Y':
         // Declared in the schema, not implemented in MVP. Failing loudly beats charging
         // full price while the UI promises a free item.
-        throw new DomainError(ErrorCode.PROMO_NOT_APPLICABLE, 'This promotion type is not available yet', {
-          code: promo.code, type: promo.type,
-        });
+        throw new DomainError(
+          ErrorCode.PROMO_NOT_APPLICABLE,
+          'This promotion type is not available yet',
+          {
+            code: promo.code,
+            type: promo.type,
+          },
+        );
       default:
         discount = 0;
     }

@@ -39,20 +39,51 @@ export interface DomainEventPayloads {
   'customer.created': { customerId: string; source: string; telegramUserId?: string };
   'customer.updated': { customerId: string; changed: string[] };
   'order.created': { orderId: string; orderNumber: string; customerId: string; total: number };
-  'order.status_changed': { orderId: string; orderNumber: string; customerId: string; from: string; to: string };
+  'order.status_changed': {
+    orderId: string;
+    orderNumber: string;
+    customerId: string;
+    from: string;
+    to: string;
+  };
   'order.completed': { orderId: string; orderNumber: string; customerId: string; total: number };
   'order.cancelled': { orderId: string; orderNumber: string; customerId: string; reason?: string };
-  'booking.created': { bookingId: string; bookingNumber: string; customerId: string; serviceId: string; resourceId: string; startsAt: string };
+  'booking.created': {
+    bookingId: string;
+    bookingNumber: string;
+    customerId: string;
+    serviceId: string;
+    resourceId: string;
+    startsAt: string;
+  };
   'booking.rescheduled': { bookingId: string; customerId: string; from: string; to: string };
   'booking.cancelled': { bookingId: string; customerId: string; startsAt: string; reason?: string };
   'booking.completed': { bookingId: string; customerId: string; price: number };
-  'payment.succeeded': { paymentId: string; orderId?: string; bookingId?: string; customerId?: string; amount: number; provider: string };
+  'payment.succeeded': {
+    paymentId: string;
+    orderId?: string;
+    bookingId?: string;
+    customerId?: string;
+    amount: number;
+    provider: string;
+  };
   'payment.failed': { paymentId: string; orderId?: string; reason?: string };
   'payment.refunded': { paymentId: string; orderId?: string; amount: number };
   'loyalty.earned': { customerId: string; amount: number; balance: number; orderId?: string };
   'loyalty.spent': { customerId: string; amount: number; balance: number; orderId?: string };
-  'promo.used': { promoCodeId: string; code: string; customerId: string; orderId: string; discount: number };
-  'inventory.low': { productId: string; variantId?: string; stockQuantity: number; threshold: number };
+  'promo.used': {
+    promoCodeId: string;
+    code: string;
+    customerId: string;
+    orderId: string;
+    discount: number;
+  };
+  'inventory.low': {
+    productId: string;
+    variantId?: string;
+    stockQuantity: number;
+    threshold: number;
+  };
   'message.received': { conversationId: string; customerId: string; messageId: string };
   'member.invited': { inviteId: string; email: string; role: string };
 }

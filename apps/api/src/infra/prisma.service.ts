@@ -1,5 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient, applyTenantGuard, asSystem, type GuardedPrismaClient } from '@bizbot/database';
+import {
+  PrismaClient,
+  applyTenantGuard,
+  asSystem,
+  type GuardedPrismaClient,
+} from '@bizbot/database';
 import { loadEnv } from '@bizbot/config';
 import { logger } from '../common/logger';
 

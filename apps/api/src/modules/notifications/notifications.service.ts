@@ -97,7 +97,14 @@ export class NotificationsService {
   }
 
   private async record(
-    input: { tenantId: string; customerId: string; templateKey: string; variables: Record<string, string | number>; bookingId?: string; scheduledFor?: Date },
+    input: {
+      tenantId: string;
+      customerId: string;
+      templateKey: string;
+      variables: Record<string, string | number>;
+      bookingId?: string;
+      scheduledFor?: Date;
+    },
     body: string | null,
     status: 'QUEUED' | 'SKIPPED',
     failureReason?: string,

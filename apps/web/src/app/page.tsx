@@ -12,9 +12,10 @@ const ADMIN = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3001';
  * feature that does not exist.
  */
 export default function LandingPage() {
-  const templates = Object.values(TEMPLATE_DEFINITIONS).filter((template) => template.key !== 'CUSTOM');
-  const modules = AVAILABLE_MODULES
-    .map((key) => MODULE_DEFINITIONS[key])
+  const templates = Object.values(TEMPLATE_DEFINITIONS).filter(
+    (template) => template.key !== 'CUSTOM',
+  );
+  const modules = AVAILABLE_MODULES.map((key) => MODULE_DEFINITIONS[key])
     .filter((definition) => !definition.core)
     .slice(0, 12);
 
@@ -29,7 +30,10 @@ export default function LandingPage() {
             <span className="font-semibold">BizBot OS</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`${ADMIN}/auth/login`} className="rounded-lg px-4 py-2 text-sm text-content-muted hover:text-content">
+            <Link
+              href={`${ADMIN}/auth/login`}
+              className="rounded-lg px-4 py-2 text-sm text-content-muted hover:text-content"
+            >
               Kirish
             </Link>
             <Link
@@ -51,8 +55,8 @@ export default function LandingPage() {
             Telegram’da biznesingiz uchun raqamli filial
           </h1>
           <p className="mt-5 text-lg text-content-muted">
-            Savdo, bron, buyurtma, mijozlar, to‘lovlar va biznes boshqaruvi — barchasi
-            bitta platformada. Bir necha daqiqada ishga tushiring.
+            Savdo, bron, buyurtma, mijozlar, to‘lovlar va biznes boshqaruvi — barchasi bitta
+            platformada. Bir necha daqiqada ishga tushiring.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -83,12 +87,17 @@ export default function LandingPage() {
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {templates.map((template) => (
-              <div key={template.key} className="rounded-xl border border-line bg-surface-raised p-5">
+              <div
+                key={template.key}
+                className="rounded-xl border border-line bg-surface-raised p-5"
+              >
                 <h3 className="font-medium">{template.label.uz}</h3>
                 <p className="mt-1.5 text-sm text-content-muted">{template.description.uz}</p>
                 <ul className="mt-3 space-y-1">
                   {template.examples.uz.slice(0, 4).map((example) => (
-                    <li key={example} className="text-sm text-content-subtle">· {example}</li>
+                    <li key={example} className="text-sm text-content-subtle">
+                      · {example}
+                    </li>
                   ))}
                 </ul>
               </div>

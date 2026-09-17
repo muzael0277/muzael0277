@@ -46,7 +46,10 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
-  async register(input: RegisterInput, context: { ip?: string; userAgent?: string }): Promise<AuthResult> {
+  async register(
+    input: RegisterInput,
+    context: { ip?: string; userAgent?: string },
+  ): Promise<AuthResult> {
     const email = input.email.toLowerCase();
 
     const existing = await this.prisma.system('register-check', () =>
@@ -75,17 +78,24 @@ export class AuthService {
     );
 
     await this.audit.record({
-      actorUserId: user.id, action: 'auth.registered', entityType: 'USER', entityId: user.id,
-      ip: context.ip, userAgent: context.userAgent,
+      actorUserId: user.id,
+      action: 'auth.registered',
+      entityType: 'USER',
+      entityId: user.id,
+      ip: context.ip,
+      userAgent: context.userAgent,
     });
 
     const pair = await this.tokens.issueForUser(user, context);
     return {
       ...pair,
       user: {
-        id: user.id, email: user.email,
-        firstName: user.profile!.firstName, lastName: user.profile!.lastName,
-        language: user.profile!.language, platformRole: user.platformRole,
+        id: user.id,
+        email: user.email,
+        firstName: user.profile!.firstName,
+        lastName: user.profile!.lastName,
+        language: user.profile!.language,
+        platformRole: user.platformRole,
       },
       tenants: [],
     };
@@ -106,7 +116,9 @@ export class AuthService {
           profile: true,
           memberships: {
             where: { isActive: true },
-            include: { tenant: { select: { id: true, slug: true, name: true, logoUrl: true, status: true } } },
+            include: {
+              tenant: { select: { id: true, slug: true, name: true, logoUrl: true, status: true } },
+            },
           },
         },
       }),
@@ -129,8 +141,12 @@ export class AuthService {
       await this.recordFailedAttempt(normalizedEmail, context.ip);
       await this.registerFailureOnUser(user.id, user.failedLoginAttempts);
       await this.audit.record({
-        actorUserId: user.id, action: 'auth.login_failed',
-        entityType: 'USER', entityId: user.id, ip: context.ip, userAgent: context.userAgent,
+        actorUserId: user.id,
+        action: 'auth.login_failed',
+        entityType: 'USER',
+        entityId: user.id,
+        ip: context.ip,
+        userAgent: context.userAgent,
       });
       throw new DomainError(ErrorCode.INVALID_CREDENTIALS);
     }
@@ -146,28 +162,42 @@ export class AuthService {
     );
 
     await this.audit.record({
-      actorUserId: user.id, action: 'auth.login', entityType: 'USER', entityId: user.id,
-      ip: context.ip, userAgent: context.userAgent,
+      actorUserId: user.id,
+      action: 'auth.login',
+      entityType: 'USER',
+      entityId: user.id,
+      ip: context.ip,
+      userAgent: context.userAgent,
     });
 
     const pair = await this.tokens.issueForUser(user, context);
     return {
       ...pair,
       user: {
-        id: user.id, email: user.email,
-        firstName: user.profile?.firstName ?? '', lastName: user.profile?.lastName ?? null,
-        language: user.profile?.language ?? 'uz', platformRole: user.platformRole,
+        id: user.id,
+        email: user.email,
+        firstName: user.profile?.firstName ?? '',
+        lastName: user.profile?.lastName ?? null,
+        language: user.profile?.language ?? 'uz',
+        platformRole: user.platformRole,
       },
       tenants: user.memberships
         .filter((m) => m.tenant.status !== 'DELETED')
         .map((m) => ({
-          id: m.tenant.id, slug: m.tenant.slug, name: m.tenant.name,
-          role: m.role, logoUrl: m.tenant.logoUrl,
+          id: m.tenant.id,
+          slug: m.tenant.slug,
+          name: m.tenant.name,
+          role: m.role,
+          logoUrl: m.tenant.logoUrl,
         })),
     };
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
     const user = await this.prisma.system('change-password-lookup', () =>
       this.prisma.raw.user.findUniqueOrThrow({ where: { id: userId } }),
     );
@@ -183,7 +213,10 @@ export class AuthService {
     // Every other session dies: a password change is usually a response to compromise.
     await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
-      actorUserId: userId, action: 'auth.password_changed', entityType: 'USER', entityId: userId,
+      actorUserId: userId,
+      action: 'auth.password_changed',
+      entityType: 'USER',
+      entityId: userId,
     });
   }
 
@@ -196,7 +229,9 @@ export class AuthService {
   private async assertNotThrottled(email: string, ip?: string): Promise<void> {
     const attempts = Number((await this.redis.client.get(this.attemptKey(email, ip))) ?? 0);
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
-      throw new DomainError(ErrorCode.ACCOUNT_LOCKED, undefined, { retryAfterMinutes: LOCKOUT_MINUTES });
+      throw new DomainError(ErrorCode.ACCOUNT_LOCKED, undefined, {
+        retryAfterMinutes: LOCKOUT_MINUTES,
+      });
     }
   }
 
@@ -221,9 +256,10 @@ export class AuthService {
         where: { id: userId },
         data: {
           failedLoginAttempts: next,
-          lockedUntil: next >= MAX_LOGIN_ATTEMPTS * 2
-            ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000)
-            : undefined,
+          lockedUntil:
+            next >= MAX_LOGIN_ATTEMPTS * 2
+              ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000)
+              : undefined,
         },
       }),
     );

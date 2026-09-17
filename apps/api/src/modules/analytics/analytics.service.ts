@@ -16,7 +16,10 @@ import { PrismaService } from '../../infra/prisma.service';
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dashboard(range: { preset?: string; dateFrom?: string; dateTo?: string; branchId?: string }, language: Language = 'uz') {
+  async dashboard(
+    range: { preset?: string; dateFrom?: string; dateTo?: string; branchId?: string },
+    language: Language = 'uz',
+  ) {
     const { from, to, previousFrom, previousTo } = resolveRange(range);
     const branchFilter = range.branchId ? { branchId: range.branchId } : {};
 
@@ -32,25 +35,56 @@ export class AnalyticsService {
     };
 
     const [
-      current, previous, bookingCount, previousBookingCount,
-      newCustomers, totalCustomers, statusBreakdown, paymentBreakdown,
-      topProducts, topServices, lowStock, cancelledBookings, allBookings,
+      current,
+      previous,
+      bookingCount,
+      previousBookingCount,
+      newCustomers,
+      totalCustomers,
+      statusBreakdown,
+      paymentBreakdown,
+      topProducts,
+      topServices,
+      lowStock,
+      cancelledBookings,
+      allBookings,
     ] = await Promise.all([
-      this.prisma.client.order.aggregate({ where: paidOrders, _sum: { total: true }, _count: true }),
-      this.prisma.client.order.aggregate({ where: previousPaidOrders, _sum: { total: true }, _count: true }),
-      this.prisma.client.booking.count({
-        where: { startsAt: { gte: from, lte: to }, status: { notIn: ['CANCELLED'] }, ...branchFilter },
+      this.prisma.client.order.aggregate({
+        where: paidOrders,
+        _sum: { total: true },
+        _count: true,
+      }),
+      this.prisma.client.order.aggregate({
+        where: previousPaidOrders,
+        _sum: { total: true },
+        _count: true,
       }),
       this.prisma.client.booking.count({
-        where: { startsAt: { gte: previousFrom, lte: previousTo }, status: { notIn: ['CANCELLED'] }, ...branchFilter },
+        where: {
+          startsAt: { gte: from, lte: to },
+          status: { notIn: ['CANCELLED'] },
+          ...branchFilter,
+        },
+      }),
+      this.prisma.client.booking.count({
+        where: {
+          startsAt: { gte: previousFrom, lte: previousTo },
+          status: { notIn: ['CANCELLED'] },
+          ...branchFilter,
+        },
       }),
       this.prisma.client.customer.count({ where: { createdAt: { gte: from, lte: to } } }),
       this.prisma.client.customer.count(),
       this.prisma.client.order.groupBy({
-        by: ['status'], where: { createdAt: { gte: from, lte: to }, ...branchFilter }, _count: true,
+        by: ['status'],
+        where: { createdAt: { gte: from, lte: to }, ...branchFilter },
+        _count: true,
       }),
       this.prisma.client.order.groupBy({
-        by: ['paymentMethod'], where: paidOrders, _count: true, _sum: { total: true },
+        by: ['paymentMethod'],
+        where: paidOrders,
+        _count: true,
+        _sum: { total: true },
       }),
       this.topProducts(from, to, range.branchId, language),
       this.topServices(from, to, language),
@@ -59,7 +93,9 @@ export class AnalyticsService {
         select: { id: true, name: true, stockQuantity: true, lowStockThreshold: true },
         take: 200,
       }),
-      this.prisma.client.booking.count({ where: { startsAt: { gte: from, lte: to }, status: 'CANCELLED' } }),
+      this.prisma.client.booking.count({
+        where: { startsAt: { gte: from, lte: to }, status: 'CANCELLED' },
+      }),
       this.prisma.client.booking.count({ where: { startsAt: { gte: from, lte: to } } }),
     ]);
 
@@ -73,25 +109,42 @@ export class AnalyticsService {
 
     return {
       range: { from, to, previousFrom, previousTo },
-      revenue: { value: revenue, previous: previousRevenue, changePercent: percentChange(revenue, previousRevenue) },
-      orders: { value: orderCount, previous: previous._count, changePercent: percentChange(orderCount, previous._count) },
-      bookings: { value: bookingCount, previous: previousBookingCount, changePercent: percentChange(bookingCount, previousBookingCount) },
+      revenue: {
+        value: revenue,
+        previous: previousRevenue,
+        changePercent: percentChange(revenue, previousRevenue),
+      },
+      orders: {
+        value: orderCount,
+        previous: previous._count,
+        changePercent: percentChange(orderCount, previous._count),
+      },
+      bookings: {
+        value: bookingCount,
+        previous: previousBookingCount,
+        changePercent: percentChange(bookingCount, previousBookingCount),
+      },
       customers: { total: totalCustomers, new: newCustomers, returning: returningCustomers },
       averageOrderValue: orderCount > 0 ? Math.round(revenue / orderCount) : 0,
       revenuePerCustomer: totalCustomers > 0 ? Math.round(revenue / totalCustomers) : 0,
       ordersByStatus: statusBreakdown.map((s) => ({ status: s.status, count: s._count })),
       paymentBreakdown: paymentBreakdown.map((p) => ({
-        method: p.paymentMethod, count: p._count, amount: Number(p._sum.total ?? 0),
+        method: p.paymentMethod,
+        count: p._count,
+        amount: Number(p._sum.total ?? 0),
       })),
       topProducts,
       topServices,
       lowStock: lowStock
         .filter((p) => p.lowStockThreshold !== null && p.stockQuantity <= p.lowStockThreshold)
         .map((p) => ({
-          id: p.id, name: resolveI18n(p.name as never, language),
-          stockQuantity: p.stockQuantity, threshold: p.lowStockThreshold!,
+          id: p.id,
+          name: resolveI18n(p.name as never, language),
+          stockQuantity: p.stockQuantity,
+          threshold: p.lowStockThreshold!,
         })),
-      bookingCancellationRate: allBookings > 0 ? Math.round((cancelledBookings / allBookings) * 100) : 0,
+      bookingCancellationRate:
+        allBookings > 0 ? Math.round((cancelledBookings / allBookings) * 100) : 0,
       revenueTimeline: await this.revenueTimeline(from, to, range.branchId),
     };
   }
@@ -103,8 +156,10 @@ export class AnalyticsService {
   async businessHealth(language: Language = 'uz') {
     const metrics = await this.dashboard({ preset: 'last7' }, language);
     const insights: {
-      key: string; severity: 'info' | 'warning' | 'critical' | 'positive';
-      title: { uz: string; ru: string }; body: { uz: string; ru: string };
+      key: string;
+      severity: 'info' | 'warning' | 'critical' | 'positive';
+      title: { uz: string; ru: string };
+      body: { uz: string; ru: string };
       metric?: { name: string; value: number; comparedTo?: number };
     }[] = [];
 
@@ -117,7 +172,11 @@ export class AnalyticsService {
           uz: `Oxirgi 7 kunda daromad avvalgi haftaga nisbatan ${Math.abs(metrics.revenue.changePercent)}% kamaydi.`,
           ru: `За последние 7 дней выручка снизилась на ${Math.abs(metrics.revenue.changePercent)}% по сравнению с прошлой неделей.`,
         },
-        metric: { name: 'revenue', value: metrics.revenue.value, comparedTo: metrics.revenue.previous },
+        metric: {
+          name: 'revenue',
+          value: metrics.revenue.value,
+          comparedTo: metrics.revenue.previous,
+        },
       });
     }
 
@@ -130,7 +189,11 @@ export class AnalyticsService {
           uz: `Oxirgi 7 kunda daromad ${metrics.revenue.changePercent}% ga oshdi.`,
           ru: `За последние 7 дней выручка выросла на ${metrics.revenue.changePercent}%.`,
         },
-        metric: { name: 'revenue', value: metrics.revenue.value, comparedTo: metrics.revenue.previous },
+        metric: {
+          name: 'revenue',
+          value: metrics.revenue.value,
+          comparedTo: metrics.revenue.previous,
+        },
       });
     }
 
@@ -140,15 +203,24 @@ export class AnalyticsService {
         severity: metrics.lowStock.length >= 5 ? 'critical' : 'warning',
         title: { uz: 'Ombor tugayapti', ru: 'Заканчивается товар' },
         body: {
-          uz: `${metrics.lowStock.length} ta mahsulot tugash arafasida: ${metrics.lowStock.slice(0, 3).map((p) => p.name).join(', ')}.`,
-          ru: `${metrics.lowStock.length} товаров заканчиваются: ${metrics.lowStock.slice(0, 3).map((p) => p.name).join(', ')}.`,
+          uz: `${metrics.lowStock.length} ta mahsulot tugash arafasida: ${metrics.lowStock
+            .slice(0, 3)
+            .map((p) => p.name)
+            .join(', ')}.`,
+          ru: `${metrics.lowStock.length} товаров заканчиваются: ${metrics.lowStock
+            .slice(0, 3)
+            .map((p) => p.name)
+            .join(', ')}.`,
         },
         metric: { name: 'lowStockCount', value: metrics.lowStock.length },
       });
     }
 
     const inactive = await this.prisma.client.customer.count({
-      where: { lastActivityAt: { lt: new Date(Date.now() - 45 * 86_400_000) }, orderCount: { gt: 0 } },
+      where: {
+        lastActivityAt: { lt: new Date(Date.now() - 45 * 86_400_000) },
+        orderCount: { gt: 0 },
+      },
     });
     if (inactive >= 5) {
       insights.push({
@@ -195,11 +267,20 @@ export class AnalyticsService {
 
   // ── internals ────────────────────────────────────────────────────────────────
 
-  private async topProducts(from: Date, to: Date, branchId: string | undefined, language: Language) {
+  private async topProducts(
+    from: Date,
+    to: Date,
+    branchId: string | undefined,
+    language: Language,
+  ) {
     const grouped = await this.prisma.client.orderItem.groupBy({
       by: ['productId'],
       where: {
-        order: { createdAt: { gte: from, lte: to }, status: { notIn: ['CANCELLED'] }, ...(branchId ? { branchId } : {}) },
+        order: {
+          createdAt: { gte: from, lte: to },
+          status: { notIn: ['CANCELLED'] },
+          ...(branchId ? { branchId } : {}),
+        },
         productId: { not: null },
       },
       _sum: { quantity: true, total: true },
@@ -255,7 +336,10 @@ export class AnalyticsService {
   private requireTenantId(): string {
     const tenantId = tenantContext.tenantId();
     if (!tenantId) {
-      throw new DomainError(ErrorCode.MISSING_TENANT_CONTEXT, 'Analytics requires a tenant in context');
+      throw new DomainError(
+        ErrorCode.MISSING_TENANT_CONTEXT,
+        'Analytics requires a tenant in context',
+      );
     }
     return tenantId;
   }
@@ -264,7 +348,9 @@ export class AnalyticsService {
     const tenantId = this.requireTenantId();
     // Grouped in SQL by calendar day: pulling every order into Node to bucket them would
     // not survive a busy month.
-    const rows = await this.prisma.client.$queryRaw<{ date: string; revenue: bigint; orders: bigint }[]>`
+    const rows = await this.prisma.client.$queryRaw<
+      { date: string; revenue: bigint; orders: bigint }[]
+    >`
       SELECT to_char("createdAt", 'YYYY-MM-DD') AS date,
              SUM(total)::bigint AS revenue,
              COUNT(*)::bigint AS orders
@@ -276,12 +362,18 @@ export class AnalyticsService {
       GROUP BY 1
       ORDER BY 1
     `;
-    return rows.map((r) => ({ date: r.date, revenue: Number(r.revenue), orders: Number(r.orders) }));
+    return rows.map((r) => ({
+      date: r.date,
+      revenue: Number(r.revenue),
+      orders: Number(r.orders),
+    }));
   }
 
   private async peakBookingHour(): Promise<{ hour: number; count: number } | null> {
     const tenantId = this.requireTenantId();
-    const timezone = (await this.prisma.client.tenant.findFirstOrThrow({ select: { timezone: true } })).timezone;
+    const timezone = (
+      await this.prisma.client.tenant.findFirstOrThrow({ select: { timezone: true } })
+    ).timezone;
 
     const rows = await this.prisma.client.$queryRaw<{ hour: number; count: bigint }[]>`
       SELECT EXTRACT(
@@ -311,17 +403,22 @@ function resolveRange(range: { preset?: string; dateFrom?: string; dateTo?: stri
 
   switch (range.preset) {
     case 'today':
-      from = startOfDay(now); break;
+      from = startOfDay(now);
+      break;
     case 'yesterday':
       from = startOfDay(new Date(now.getTime() - 86_400_000));
-      to = new Date(startOfDay(now).getTime() - 1); break;
+      to = new Date(startOfDay(now).getTime() - 1);
+      break;
     case 'last7':
-      from = new Date(now.getTime() - 7 * 86_400_000); break;
+      from = new Date(now.getTime() - 7 * 86_400_000);
+      break;
     case 'thisMonth':
-      from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)); break;
+      from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      break;
     case 'custom':
       from = new Date(`${range.dateFrom}T00:00:00Z`);
-      to = new Date(`${range.dateTo}T23:59:59Z`); break;
+      to = new Date(`${range.dateTo}T23:59:59Z`);
+      break;
     default:
       from = new Date(now.getTime() - 30 * 86_400_000);
   }

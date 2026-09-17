@@ -15,7 +15,12 @@ export type SegmentFilter =
   | { field: string; op: string; value: unknown };
 
 const SCALAR_FIELDS = new Set([
-  'totalSpent', 'orderCount', 'bookingCount', 'loyaltyBalance', 'language', 'source',
+  'totalSpent',
+  'orderCount',
+  'bookingCount',
+  'loyaltyBalance',
+  'language',
+  'source',
 ]);
 const DATE_FIELDS = new Set(['lastActivityAt', 'createdAt', 'birthDate']);
 
@@ -25,7 +30,11 @@ export function compileSegmentFilter(filter: SegmentFilter): Prisma.CustomerWher
   return compileCondition(filter);
 }
 
-function compileCondition(condition: { field: string; op: string; value: unknown }): Prisma.CustomerWhereInput {
+function compileCondition(condition: {
+  field: string;
+  op: string;
+  value: unknown;
+}): Prisma.CustomerWhereInput {
   const { field, op, value } = condition;
 
   if (field === 'tag') {
@@ -54,9 +63,12 @@ function compileCondition(condition: { field: string; op: string; value: unknown
           OR: buildBirthdayRanges(today),
         };
       }
-      case 'gt': return { [field]: { gt: new Date(String(value)) } } as Prisma.CustomerWhereInput;
-      case 'lt': return { [field]: { lt: new Date(String(value)) } } as Prisma.CustomerWhereInput;
-      default: return {};
+      case 'gt':
+        return { [field]: { gt: new Date(String(value)) } } as Prisma.CustomerWhereInput;
+      case 'lt':
+        return { [field]: { lt: new Date(String(value)) } } as Prisma.CustomerWhereInput;
+      default:
+        return {};
     }
   }
 
@@ -66,14 +78,22 @@ function compileCondition(condition: { field: string; op: string; value: unknown
   const coerced = field === 'totalSpent' ? BigInt(Math.trunc(Number(value))) : value;
 
   switch (op) {
-    case 'eq': return { [field]: coerced } as Prisma.CustomerWhereInput;
-    case 'neq': return { [field]: { not: coerced } } as Prisma.CustomerWhereInput;
-    case 'gt': return { [field]: { gt: coerced } } as Prisma.CustomerWhereInput;
-    case 'gte': return { [field]: { gte: coerced } } as Prisma.CustomerWhereInput;
-    case 'lt': return { [field]: { lt: coerced } } as Prisma.CustomerWhereInput;
-    case 'lte': return { [field]: { lte: coerced } } as Prisma.CustomerWhereInput;
-    case 'in': return { [field]: { in: value as unknown[] } } as Prisma.CustomerWhereInput;
-    default: return {};
+    case 'eq':
+      return { [field]: coerced } as Prisma.CustomerWhereInput;
+    case 'neq':
+      return { [field]: { not: coerced } } as Prisma.CustomerWhereInput;
+    case 'gt':
+      return { [field]: { gt: coerced } } as Prisma.CustomerWhereInput;
+    case 'gte':
+      return { [field]: { gte: coerced } } as Prisma.CustomerWhereInput;
+    case 'lt':
+      return { [field]: { lt: coerced } } as Prisma.CustomerWhereInput;
+    case 'lte':
+      return { [field]: { lte: coerced } } as Prisma.CustomerWhereInput;
+    case 'in':
+      return { [field]: { in: value as unknown[] } } as Prisma.CustomerWhereInput;
+    default:
+      return {};
   }
 }
 
