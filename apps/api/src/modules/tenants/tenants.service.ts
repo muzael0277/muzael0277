@@ -235,6 +235,38 @@ export class TenantsService {
     return { onboardingStep: tenant.onboardingStep, completed: tenant.onboardingCompletedAt !== null };
   }
 
+  /**
+   * Permanently deletes a business and everything it owns.
+   *
+   * Audit rows are append-only at the database level, so a cascade into AuditLog is
+   * refused unless the transaction explicitly opts in. That opt-in is the point: ordinary
+   * application code — and anyone who has compromised it — cannot erase an audit trail by
+   * issuing a DELETE, while a deliberate erasure still has a supported path. The purge
+   * itself is recorded before the flag is set, so the last thing in the trail is the
+   * decision to destroy it.
+   *
+   * Used by the platform-admin surface and by test teardown.
+   */
+  async purge(tenantId: string, actorUserId: string | null, reason: string) {
+    await this.audit.record({
+      actorUserId, action: 'tenant.purged', entityType: 'TENANT', entityId: tenantId,
+      after: { reason },
+    });
+
+    const tenant = await this.prisma.system('tenant-purge-read', () =>
+      this.prisma.raw.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
+    );
+
+    await this.prisma.system('tenant-purge', () =>
+      this.prisma.raw.$transaction(async (tx) => {
+        await tx.$executeRaw`SET LOCAL bizbot.allow_audit_purge = 'on'`;
+        await tx.tenant.delete({ where: { id: tenantId } });
+      }),
+    );
+
+    if (tenant) await this.cache.invalidate(tenantId, tenant.slug);
+  }
+
   // ── internals ────────────────────────────────────────────────────────────────
 
   private async uniqueSlug(base: string): Promise<string> {

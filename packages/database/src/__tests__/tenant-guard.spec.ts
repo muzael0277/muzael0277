@@ -368,3 +368,56 @@ describe('the Tenant model scopes on its own id', () => {
     await asSystem(() => base.tenant.delete({ where: { id: created.id } }));
   });
 });
+
+describe('nested writes are stamped too', () => {
+  /**
+   * A nested create writes rows in a different table, and those rows need the tenant as
+   * well. Before the guard handled this, every call site had to thread the tenant through
+   * by hand — which failed loudly on required columns and, on a model where tenantId was
+   * optional, would have written an unscoped row instead.
+   */
+  it('stamps a one-level nested create', async () => {
+    const product = await asA(() =>
+      prisma.product.create({
+        data: {
+          name: { uz: 'Nested' },
+          price: 1000,
+          variants: { create: [{ name: { uz: 'Katta' }, priceModifier: 500 }] },
+        } as never,
+        include: { variants: true },
+      }),
+    );
+
+    expect(product.tenantId).toBe(TENANT_A);
+    expect(product.variants).toHaveLength(1);
+    expect(product.variants[0]!.tenantId).toBe(TENANT_A);
+  });
+
+  it('stamps rows inside createMany', async () => {
+    const product = await asA(() =>
+      prisma.product.create({
+        data: {
+          name: { uz: 'Many' },
+          price: 1000,
+          variants: { createMany: { data: [{ name: { uz: 'S' } }, { name: { uz: 'M' } }] } },
+        } as never,
+        include: { variants: true },
+      }),
+    );
+    expect(product.variants.every((v) => v.tenantId === TENANT_A)).toBe(true);
+  });
+
+  it('still refuses a nested row that names another tenant', async () => {
+    await expect(
+      asA(() =>
+        prisma.product.create({
+          data: {
+            name: { uz: 'Bad' },
+            price: 1000,
+            variants: { create: [{ tenantId: TENANT_B, name: { uz: 'X' } }] },
+          } as never,
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+});

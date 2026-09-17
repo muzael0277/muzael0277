@@ -146,6 +146,134 @@ function withTenantWhere(
   return { AND: [{ [key]: tenantId }, where] };
 }
 
+/**
+ * Relation field -> related model, built from the schema.
+ *
+ * Needed to stamp nested writes: `product.create({ data: { modifierGroups: { create: [...] } } })`
+ * writes rows in a *different* table, and those rows need the tenant too.
+ */
+const RELATION_TARGETS: Map<string, Map<string, string>> = (() => {
+  const map = new Map<string, Map<string, string>>();
+  for (const model of Prisma.dmmf.datamodel.models) {
+    const relations = new Map<string, string>();
+    for (const field of model.fields) {
+      if (field.kind === 'object' && typeof field.type === 'string') {
+        relations.set(field.name, field.type);
+      }
+    }
+    map.set(model.name, relations);
+  }
+  return map;
+})();
+
+const NESTED_CREATE_KEYS = ['create', 'createMany', 'connectOrCreate', 'upsert'] as const;
+
+/**
+ * Stamps the tenant onto nested creates.
+ *
+ * Without this, a nested write fails with a bare "Argument `tenantId` is missing" — or,
+ * far worse on a model where tenantId happened to be optional, succeeds with no tenant at
+ * all. Every call site would otherwise have to remember to thread the tenant through by
+ * hand, which is exactly the kind of thing that gets forgotten once and leaks.
+ *
+ * Depth-limited: Prisma allows arbitrarily deep nesting, but two levels covers every
+ * write this application makes, and an unbounded walk over attacker-influenced input is
+ * its own hazard.
+ */
+function stampNestedCreates(
+  model: string,
+  data: Record<string, unknown>,
+  tenantId: string,
+  depth = 0,
+  operation = 'create',
+): Record<string, unknown> {
+  if (depth > 2) return data;
+
+  const relations = RELATION_TARGETS.get(model);
+  if (!relations) return data;
+
+  const result: Record<string, unknown> = { ...data };
+
+  for (const [field, value] of Object.entries(data)) {
+    const relatedModel = relations.get(field);
+    if (!relatedModel || value === null || typeof value !== 'object') continue;
+    if (!scopedModelsCache?.has(relatedModel)) continue;
+
+    const relatedKey = tenantKeyFor(relatedModel);
+    // The Tenant model's key is its own id and must never be auto-stamped.
+    if (relatedKey === 'id') continue;
+
+    const nested = { ...(value as Record<string, unknown>) };
+    let touched = false;
+
+    for (const key of NESTED_CREATE_KEYS) {
+      const payload = nested[key];
+      if (payload === undefined || payload === null) continue;
+
+      if (Array.isArray(payload)) {
+        nested[key] = payload.map((row) =>
+          typeof row === 'object' && row !== null
+            ? stampNestedCreates(
+                relatedModel,
+                stampRow(relatedModel, row as Record<string, unknown>, relatedKey, tenantId, operation),
+                tenantId, depth + 1, operation,
+              )
+            : row,
+        );
+        touched = true;
+      } else if (typeof payload === 'object') {
+        const row = payload as Record<string, unknown>;
+        // createMany wraps its rows in { data: [...] }
+        if (key === 'createMany' && Array.isArray(row.data)) {
+          nested[key] = {
+            ...row,
+            data: (row.data as unknown[]).map((entry) =>
+              typeof entry === 'object' && entry !== null
+                ? stampRow(relatedModel, entry as Record<string, unknown>, relatedKey, tenantId, operation)
+                : entry,
+            ),
+          };
+        } else {
+          nested[key] = stampNestedCreates(
+            relatedModel,
+            stampRow(relatedModel, row, relatedKey, tenantId, operation),
+            tenantId, depth + 1, operation,
+          );
+        }
+        touched = true;
+      }
+    }
+
+    if (touched) result[field] = nested;
+  }
+
+  return result;
+}
+
+/**
+ * Applies the tenant to one nested row, refusing a row that names a different one.
+ *
+ * The stamp is applied *after* the caller's fields, not before: spreading the caller last
+ * would let a nested `tenantId` silently override ours and write into another tenant —
+ * which is exactly what a test caught here.
+ */
+function stampRow(
+  model: string,
+  row: Record<string, unknown>,
+  key: string,
+  tenantId: string,
+  operation: string,
+): Record<string, unknown> {
+  const supplied = row[key];
+  if (supplied !== undefined && supplied !== null && supplied !== tenantId) {
+    throw new CrossTenantWriteError(model, `${operation} (nested)`, tenantId, String(supplied));
+  }
+  return { ...row, [key]: tenantId };
+}
+
+/** Populated once at guard construction; nested stamping consults it. */
+let scopedModelsCache: Set<string> | undefined;
+
 function assertTenantOnData(
   data: Record<string, unknown>,
   tenantId: string,
@@ -155,20 +283,19 @@ function assertTenantOnData(
 ): Record<string, unknown> {
   // Creating a Tenant is how a tenant comes into existence, so its own id must not be
   // stamped with the current context. That path runs in system context anyway.
-  if (key === 'id') return data;
+  if (key === 'id') return stampNestedCreates(model, data, tenantId, 0, operation);
 
   const supplied = data[key];
-  if (supplied === undefined || supplied === null) {
-    return { ...data, [key]: tenantId };
-  }
-  if (supplied !== tenantId) {
+  if (supplied !== undefined && supplied !== null && supplied !== tenantId) {
     throw new CrossTenantWriteError(model, operation, tenantId, String(supplied));
   }
-  return data;
+
+  return stampNestedCreates(model, { ...data, [key]: tenantId }, tenantId, 0, operation);
 }
 
 export function applyTenantGuard<T extends PrismaClient>(client: T) {
   const scopedModels = buildScopedModelSet();
+  scopedModelsCache = scopedModels;
 
   return client.$extends({
     name: 'bizbot-tenant-guard',

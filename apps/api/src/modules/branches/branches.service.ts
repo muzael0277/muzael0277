@@ -99,7 +99,7 @@ export class BranchesService {
         data: {
           ...(data as Record<string, unknown>),
           ...(serviceIds?.length
-            ? { services: { create: serviceIds.map((serviceId) => ({ serviceId, tenantId: undefined as never })) } }
+            ? { services: { create: serviceIds.map((serviceId) => ({ serviceId })) } }
             : {}),
         } as never,
       });

@@ -45,7 +45,6 @@ model User {
   profile       Profile?
   memberships   TenantMembership[]
   refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
   sentInvites   MemberInvite[]     @relation("InviteSender")
   assignedConversations Conversation[] @relation("ConversationAssignee")
 
@@ -1680,7 +1679,13 @@ model CustomFieldDefinition {
   @@index([tenantId, entity, sortOrder])
 }
 
-/// Append-only. The application role has no UPDATE or DELETE grant on this table.
+/// Append-only, enforced by database triggers.
+///
+/// `actorUserId` deliberately carries no foreign key. A SetNull cascade would require an
+/// UPDATE, which the immutability trigger forbids — so a user could never be deleted —
+/// and, worse, it would erase *who did it* from the historical record, which is the one
+/// thing an audit log exists to preserve. A dangling id after a user is deleted is the
+/// correct outcome here.
 model AuditLog {
   id          String   @id @default(uuid())
   tenantId    String?
@@ -1697,7 +1702,6 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, actorUserId, createdAt(sort: Desc)])

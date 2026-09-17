@@ -159,12 +159,7 @@ export class CatalogService {
         ...(modifierGroupIds?.length
           ? {
               modifierGroups: {
-                create: modifierGroupIds.map((groupId, i) => ({
-                  groupId,
-                  sortOrder: i,
-                  tenant: undefined as never,
-                  tenantId: undefined as never,
-                })),
+                create: modifierGroupIds.map((groupId, i) => ({ groupId, sortOrder: i })),
               },
             }
           : {}),
@@ -308,11 +303,16 @@ export class CatalogService {
     return product.stockQuantity;
   }
 
-  private presentProduct(product: Record<string, unknown> & {
-    variants?: { stockQuantity: number }[];
-    stockQuantity: number; trackInventory: boolean; lowStockThreshold: number | null;
-    modifierGroups?: { group: unknown }[];
-  }) {
+  private presentProduct<
+    T extends {
+      id: string;
+      variants?: { stockQuantity: number }[];
+      stockQuantity: number;
+      trackInventory: boolean;
+      lowStockThreshold: number | null;
+      modifierGroups?: { group: unknown }[];
+    },
+  >(product: T) {
     const stock = this.effectiveStock(product as never);
     return {
       ...product,
