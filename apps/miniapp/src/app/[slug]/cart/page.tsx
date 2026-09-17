@@ -47,6 +47,12 @@ interface CartSummary {
   } | null;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+  address: string | null;
+}
+
 export default function CartPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const toast = useToast();
@@ -58,12 +64,24 @@ export default function CartPage({ params }: { params: { slug: string } }) {
   const [phone, setPhone] = React.useState(shop?.customer.phone ?? '');
   const [comment, setComment] = React.useState('');
   const [method, setMethod] = React.useState('CASH');
+  const [branchId, setBranchId] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+
+  // Pickup and dine-in need a branch: the customer has to know where to go, and the
+  // checkout contract refuses the order without one.
+  const { data: branches } = useSWR<Branch[]>(
+    shop && fulfillment !== 'DELIVERY' ? '/branches' : null,
+    shopFetcher,
+  );
 
   const { data, mutate, isLoading } = useSWR<CartSummary>(
     shop ? `/cart?fulfillmentType=${fulfillment}` : null,
     shopFetcher,
   );
+
+  React.useEffect(() => {
+    if (!branchId && branches?.length) setBranchId(branches[0]!.id);
+  }, [branches, branchId]);
 
   const money = (value: number) =>
     formatMoney(value, (shop?.tenant.currency ?? 'UZS') as never, shop?.customer.language ?? 'uz');
@@ -105,7 +123,7 @@ export default function CartPage({ params }: { params: { slug: string } }) {
           comment: comment || undefined,
           ...(fulfillment === 'DELIVERY'
             ? { address: { line1: address, saveForLater: true } }
-            : { branchId: undefined }),
+            : { branchId }),
         },
       });
       haptic('success');
@@ -210,13 +228,23 @@ export default function CartPage({ params }: { params: { slug: string } }) {
           ))}
         </div>
 
-        {fulfillment === 'DELIVERY' && (
+        {fulfillment === 'DELIVERY' ? (
           <Field label="Manzil" required>
             <Input
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               placeholder="Ko‘cha, uy, xonadon"
             />
+          </Field>
+        ) : (
+          <Field label="Filial" required>
+            <Select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+              {(branches ?? []).map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} — {branch.address}
+                </option>
+              ))}
+            </Select>
           </Field>
         )}
 
@@ -290,7 +318,7 @@ export default function CartPage({ params }: { params: { slug: string } }) {
         fullWidth
         size="lg"
         loading={busy}
-        disabled={fulfillment === 'DELIVERY' && !address.trim()}
+        disabled={fulfillment === 'DELIVERY' ? !address.trim() : !branchId}
         onClick={checkout}
       >
         Buyurtma berish{pricing ? ` — ${money(pricing.total)}` : ''}

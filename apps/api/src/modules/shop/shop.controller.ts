@@ -28,6 +28,21 @@ import { LoyaltyService } from '../loyalty/loyalty.service';
  * Responses are already localized to the customer's language, because a phone on mobile
  * data should not download three translations of every product name.
  */
+interface ShopCart {
+  items: {
+    name: unknown;
+    variantName: unknown;
+    modifiers: { name: unknown }[];
+  }[];
+}
+
+interface ShopPricing {
+  lines: {
+    nameSnapshot: unknown;
+    modifiers?: { name: unknown }[];
+  }[];
+}
+
 @Controller('shop')
 @CustomerRoute()
 export class ShopController {
@@ -225,47 +240,113 @@ export class ShopController {
 
   @Get('cart')
   @RequireModule('ORDERS')
-  getCart(@CurrentActor() actor: RequestActor, @Query('fulfillmentType') fulfillmentType?: string) {
-    return this.cart.summary(actor.customerId!, {
-      fulfillmentType: (fulfillmentType as 'DELIVERY' | 'PICKUP' | 'DINE_IN') ?? 'DELIVERY',
-    });
+  async getCart(
+    @CurrentActor() actor: RequestActor,
+    @Lang() lang: Language,
+    @Query('fulfillmentType') fulfillmentType?: string,
+  ) {
+    return this.presentCart(
+      await this.cart.summary(actor.customerId!, {
+        fulfillmentType: (fulfillmentType as 'DELIVERY' | 'PICKUP' | 'DINE_IN') ?? 'DELIVERY',
+      }),
+      lang,
+    );
   }
 
   @Post('cart/items')
   @RequireModule('ORDERS')
-  addItem(@CurrentActor() actor: RequestActor, @Body(zodBody(addCartItemSchema)) dto: never) {
-    return this.cart.addItem(actor.customerId!, dto);
+  async addItem(
+    @CurrentActor() actor: RequestActor,
+    @Lang() lang: Language,
+    @Body(zodBody(addCartItemSchema)) dto: never,
+  ) {
+    return this.presentCart(await this.cart.addItem(actor.customerId!, dto), lang);
   }
 
   @Patch('cart/items/:id')
   @RequireModule('ORDERS')
-  updateItem(
+  async updateItem(
     @CurrentActor() actor: RequestActor,
+    @Lang() lang: Language,
     @Param('id') id: string,
     @Body(zodBody(updateCartItemSchema)) dto: { quantity: number },
   ) {
-    return this.cart.updateItem(actor.customerId!, id, dto.quantity);
+    return this.presentCart(await this.cart.updateItem(actor.customerId!, id, dto.quantity), lang);
   }
 
   @Delete('cart/items/:id')
   @RequireModule('ORDERS')
-  removeItem(@CurrentActor() actor: RequestActor, @Param('id') id: string) {
-    return this.cart.removeItem(actor.customerId!, id);
+  async removeItem(
+    @CurrentActor() actor: RequestActor,
+    @Lang() lang: Language,
+    @Param('id') id: string,
+  ) {
+    return this.presentCart(await this.cart.removeItem(actor.customerId!, id), lang);
   }
 
   @Post('cart/promo')
   @RequireModule('ORDERS')
-  applyPromo(
+  async applyPromo(
     @CurrentActor() actor: RequestActor,
+    @Lang() lang: Language,
     @Body(zodBody(applyPromoSchema)) dto: { code: string },
   ) {
-    return this.cart.applyPromo(actor.customerId!, dto.code);
+    return this.presentCart(await this.cart.applyPromo(actor.customerId!, dto.code), lang);
   }
 
   @Delete('cart/promo')
   @RequireModule('ORDERS')
-  removePromo(@CurrentActor() actor: RequestActor) {
-    return this.cart.removePromo(actor.customerId!);
+  async removePromo(@CurrentActor() actor: RequestActor, @Lang() lang: Language) {
+    return this.presentCart(await this.cart.removePromo(actor.customerId!), lang);
+  }
+
+  /**
+   * Resolves translated names to the customer's language.
+   *
+   * The rule for this surface is that it returns text ready to render — the catalog
+   * endpoints above already do it. The cart did not, so `name` reached the Mini App as
+   * `{uz, ru}` and React refused to render an object: the cart page crashed with
+   * "Objects are not valid as a React child" the moment it held an item.
+   *
+   * It belongs here rather than in CartService, because the admin surface wants every
+   * translation, not one of them.
+   */
+  private presentCart<T extends { cart: ShopCart; pricing?: ShopPricing | null }>(
+    result: T,
+    lang: Language,
+  ): T {
+    return {
+      ...result,
+      cart: {
+        ...result.cart,
+        items: result.cart.items.map((item) => ({
+          ...item,
+          name: resolveI18n(item.name as never, lang),
+          variantName: item.variantName ? resolveI18n(item.variantName as never, lang) : null,
+          modifiers: item.modifiers.map((modifier) => ({
+            ...modifier,
+            name: resolveI18n(modifier.name as never, lang),
+          })),
+        })),
+      },
+      // The pricing breakdown carries its own copy of each name. Nothing renders it
+      // today, which is exactly why it would be found the hard way later.
+      ...(result.pricing
+        ? {
+            pricing: {
+              ...result.pricing,
+              lines: result.pricing.lines.map((line) => ({
+                ...line,
+                nameSnapshot: resolveI18n(line.nameSnapshot as never, lang),
+                modifiers: line.modifiers?.map((modifier) => ({
+                  ...modifier,
+                  name: resolveI18n(modifier.name as never, lang),
+                })),
+              })),
+            },
+          }
+        : {}),
+    };
   }
 
   @Post('checkout')
