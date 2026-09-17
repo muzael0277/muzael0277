@@ -8,4 +8,4 @@
 FROM bizbot-api:latest
 ENV BIZBOT_ROLE=worker
 HEALTHCHECK NONE
-CMD ["node", "apps/api/dist/main.worker.js"]
+CMD ["node", "dist/main.worker.js"]

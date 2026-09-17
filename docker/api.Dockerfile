@@ -50,9 +50,21 @@ RUN pnpm --filter @bizbot/database generate \
 FROM build AS migrator
 CMD ["pnpm", "--filter", "@bizbot/database", "migrate:deploy"]
 
-# ── prune: drop dev dependencies from what the runtime will copy ─────────────
-FROM build AS pruned
-RUN pnpm prune --prod
+# ── deploy: a self-contained tree with production dependencies only ──────────
+# `pnpm prune --prod` is the obvious thing to reach for and it is wrong here: in a
+# workspace it removes the symlink farm the packages resolve through, and the image
+# starts up unable to find reflect-metadata. `pnpm deploy` instead materializes one
+# package and its production dependency graph into a real directory.
+FROM build AS deploy
+RUN CI=true pnpm --filter @bizbot/api deploy --prod --legacy /out \
+ # The deploy reinstalls from the store without running postinstall scripts, so the
+ # generated Prisma client does not come with it. It is a plain directory; copy the one
+ # the build stage already generated rather than trying to re-run the generator against
+ # a tree that has no Prisma CLI in it.
+ && cp -r "$(find /app/node_modules/.pnpm -maxdepth 4 -type d -name .prisma | head -1)" \
+          "$(ls -d /out/node_modules/.pnpm/@prisma+client@*/node_modules | head -1)/" \
+ # Sources and test config are of no use to a running server.
+ && rm -rf /out/src /out/vitest.config.ts /out/tsconfig.json /out/nest-cli.json
 
 # ── runtime ──────────────────────────────────────────────────────────────────
 FROM base AS runtime
@@ -61,11 +73,7 @@ ENV NODE_ENV=production
 RUN useradd --create-home --shell /bin/bash bizbot
 WORKDIR /app
 
-COPY --from=pruned --chown=bizbot:bizbot /app/node_modules          ./node_modules
-COPY --from=pruned --chown=bizbot:bizbot /app/packages              ./packages
-COPY --from=pruned --chown=bizbot:bizbot /app/apps/api/dist         ./apps/api/dist
-COPY --from=pruned --chown=bizbot:bizbot /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=pruned --chown=bizbot:bizbot /app/apps/api/package.json ./apps/api/
+COPY --from=deploy --chown=bizbot:bizbot /out ./
 
 USER bizbot
 EXPOSE 4000
@@ -75,4 +83,4 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:4000/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "dist/main.js"]

@@ -26,16 +26,22 @@ The API image has three useful targets:
 | `build`    | Full toolchain                             | Intermediate                   |
 
 The runtime image runs as the unprivileged `bizbot` user and carries no compiler and no
-source. The migrator exists because `prisma` and `tsx` are dev dependencies, pruned
-from the runtime image — a serving image that can rewrite the schema is a serving image
-that can rewrite the schema by accident.
+source. The migrator exists because `prisma` and `tsx` are dev dependencies, absent from
+the runtime image — a serving image that can rewrite the schema is a serving image that
+can rewrite the schema by accident.
+
+The production tree is produced by `pnpm deploy`, not `pnpm prune --prod`. In a
+workspace, pruning removes the symlink farm that packages resolve through, and the
+resulting image fails at startup unable to find `reflect-metadata`. `pnpm deploy` also
+skips postinstall scripts, so the generated Prisma client is copied across from the
+build stage rather than regenerated.
 
 ## Running the worker
 
 Same image, different command:
 
 ```bash
-docker run bizbot-api:$TAG node apps/api/dist/main.worker.js
+docker run bizbot-api:$TAG node dist/main.worker.js
 ```
 
 One codebase, one dependency tree, one DI container, no HTTP listener. Two separately

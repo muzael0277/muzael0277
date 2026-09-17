@@ -143,7 +143,7 @@ services:
     environment:
       <<: *api-env
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
-    command: ['node', 'apps/api/dist/main.worker.js']
+    command: ['node', 'dist/main.worker.js']
     volumes:
       - uploads:/app/uploads
     depends_on:
