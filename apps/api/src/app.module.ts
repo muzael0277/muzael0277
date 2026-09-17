@@ -10,6 +10,8 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { MembersModule } from './modules/members/members.module';
 import { HealthModule } from './modules/health/health.module';
 import { BusinessModule } from './modules/business.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
+import { IntegrationsModule } from './modules/notifications/notifications.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
@@ -43,6 +45,8 @@ import { RequestContextMiddleware } from './common/interceptors/request-context.
     TenantsModule,
     MembersModule,
     BusinessModule,
+    TelegramModule,
+    IntegrationsModule,
     HealthModule,
   ],
   providers: [

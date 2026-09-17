@@ -28,3 +28,20 @@ export class CrossTenantWriteError extends Error {
     this.name = 'CrossTenantWriteError';
   }
 }
+
+/**
+ * A tenant-scoped unique read that matched nothing.
+ *
+ * Distinct from CrossTenantWriteError on purpose: reading an id that belongs to someone
+ * else is an ordinary "not found", while *writing* to one is a defect. Conflating them
+ * would turn a user pasting a stale link into a 500.
+ */
+export class RecordNotFoundError extends Error {
+  /** Matches Prisma's own code, so the API's exception filter maps it to 404 unchanged. */
+  readonly code = 'P2025';
+
+  constructor(readonly model: string) {
+    super(`No ${model} found for the current tenant`);
+    this.name = 'RecordNotFoundError';
+  }
+}

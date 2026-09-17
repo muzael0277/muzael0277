@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { tenantContext, isSystemContext } from './tenant-context';
-import { CrossTenantWriteError, MissingTenantContextError } from './errors';
+import { CrossTenantWriteError, MissingTenantContextError, RecordNotFoundError } from './errors';
 
 /**
  * The tenant guard.
@@ -195,21 +195,26 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
           }
 
           if (UNIQUE_READ_OPERATIONS.has(operation)) {
-            // findUnique cannot take a non-unique filter, so promote it. The return
-            // shape is identical, and an id belonging to another tenant now yields null
-            // (or a not-found throw) instead of that tenant's row.
-            const promoted = operation === 'findUnique' ? 'findFirst' : 'findFirstOrThrow';
-            const delegates = client as unknown as Record<
-              string,
-              Record<string, (args: unknown) => unknown> | undefined
-            >;
-            const delegate = delegates[lowerFirst(model)];
-            const run = delegate?.[promoted];
-            if (typeof run !== 'function') {
-              // Cannot promote safely, so refuse rather than run an unscoped findUnique.
-              throw new MissingTenantContextError(model, `${operation} (no ${promoted} delegate)`);
+            // Prisma's extended-where-unique accepts additional scalar filters alongside
+            // the unique one, so the tenant is merged in place rather than the call being
+            // promoted to findFirst on the outer client. That promotion worked, but it
+            // ran the query *outside* any enclosing transaction — so a read-then-write
+            // inside one could miss its own uncommitted changes. Merging keeps the call
+            // exactly where the caller put it.
+            //
+            // An id belonging to another tenant now yields null, or a not-found throw,
+            // instead of that tenant's row: possessing an id is not a capability.
+            // A read naming another tenant's key is simply *not found* — that is the
+            // honest answer and the one a REST handler should turn into a 404. Throwing
+            // here would surface someone pasting a foreign id as a 500. Writes are
+            // different: attempting to write another tenant is a bug worth surfacing
+            // loudly, so those still raise CrossTenantWriteError below.
+            const namedTenant = (a.where ?? {})[key];
+            if (typeof namedTenant === 'string' && namedTenant !== tenantId) {
+              if (operation === 'findUnique') return null;
+              throw new RecordNotFoundError(model);
             }
-            return run({ ...a, where: withTenantWhere(a.where, tenantId, key) });
+            return query({ ...a, where: withTenantUniqueWhere(a.where, tenantId, key) });
           }
 
           if (UNIQUE_WRITE_OPERATIONS.has(operation)) {
@@ -250,9 +255,6 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
   });
 }
 
-function lowerFirst(value: string): string {
-  return value.charAt(0).toLowerCase() + value.slice(1);
-}
 
 /** Exposed for tests and for the boot-time self-check. */
 export const tenantGuardInternals = {
