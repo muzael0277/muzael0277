@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Production overlay. Use it together with the base file, never on its own:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+#     --env-file deploy/.env.production --profile full up -d
+#
+# What it changes:
+#   · Nothing but nginx is published. In the base file Postgres and Redis bind
+#     to the host for local convenience; on a public VPS that is a database
+#     open to the internet, and scanners find it in minutes.
+#   · nginx terminates TLS and routes the four hostnames.
+#   · certbot renews the certificates.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # Reachable only from inside the compose network.
+  postgres:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  api:
+    ports: !override []
+    environment:
+      NODE_ENV: production
+      ENABLE_SWAGGER: 'false'
+      RUN_WORKER_IN_API: 'false'
+      TELEGRAM_MODE: webhook
+
+  worker:
+    environment:
+      NODE_ENV: production
+      RUN_WORKER_IN_API: 'false'
+
+  admin:
+    ports: !override []
+
+  miniapp:
+    ports: !override []
+
+  web:
+    ports: !override []
+
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ['full']
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - ./deploy/nginx/entrypoint/99-reload-on-renewal.sh:/docker-entrypoint.d/99-reload-on-renewal.sh:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    environment:
+      # nginx:alpine substitutes these into anything under /etc/nginx/templates
+      # and writes the result to /etc/nginx/conf.d at startup.
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/.env.production}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?set ADMIN_DOMAIN}
+      MINIAPP_DOMAIN: ${MINIAPP_DOMAIN:?set MINIAPP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+    depends_on:
+      api:
+        condition: service_started
+
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ['full']
+    restart: unless-stopped
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Certbot's own advice: try twice a day, at a time nobody else picked.
+    entrypoint: >-
+      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  certbot-conf:
+  certbot-www:

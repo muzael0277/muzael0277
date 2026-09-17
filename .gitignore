@@ -19,3 +19,6 @@ npm-debug.log*
 uploads/
 tmp/
 generated/
+
+# Production environment, filled in on the server.
+deploy/.env.production
