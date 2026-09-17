@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keeps Turborepo from trying to reach a remote cache that is not configured.
+  TURBO_TELEMETRY_DISABLED: 1
+  DO_NOT_TRACK: 1
+
+jobs:
+  # ── static: the checks that need no services ───────────────────────────────
+  static:
+    name: Format, types, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Everything downstream imports the generated client's types, so this comes
+      # before any compile step.
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Validate the Prisma schema
+        run: pnpm --filter @bizbot/database exec prisma validate
+
+      - name: Build all packages and apps
+        run: pnpm build
+        env:
+          # Next inlines NEXT_PUBLIC_* at build time; the value only has to parse.
+          NEXT_PUBLIC_API_URL: http://localhost:4000/v1
+
+      # Depends on ^build, so it runs against the real emitted declarations rather
+      # than a stale dist.
+      - name: Typecheck
+        run: pnpm typecheck
+
+  # ── test: everything, against a real Postgres and Redis ────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bizbot_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bizbot_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bizbot_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      # CI-only values. They are here in plain sight precisely because they protect
+      # nothing: the database is thrown away with the runner. Real secrets live in the
+      # host's secret store and never in a workflow file.
+      JWT_ACCESS_SECRET: ci-access-secret-0000000000000000000000
+      JWT_REFRESH_SECRET: ci-refresh-secret-000000000000000000000
+      SECRETS_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      TELEGRAM_MODE: disabled
+      ENABLE_DEMO_MODE: 'true'
+      RUN_WORKER_IN_API: 'false'
+      LOG_LEVEL: warn
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `migrate deploy` — not `db push` — so CI exercises the same migration files
+      # production will run. A migration that fails here never reaches a customer.
+      - name: Apply migrations
+        run: |
+          pnpm db:generate
+          pnpm db:migrate:deploy
+
+      - name: Check migrations match the schema
+        # An edited schema.prisma with no accompanying migration passes every test and
+        # then fails on deploy. `migrate diff` catches exactly that drift.
+        run: |
+          pnpm --filter @bizbot/database exec prisma migrate diff \
+            --from-schema-datasource prisma/schema.prisma \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
+
+      - name: Run the full suite
+        run: pnpm test
+
+      # Named separately so the failure line in the UI says which invariant broke,
+      # instead of "tests failed". These are the ones that cost money or leak data.
+      - name: Critical invariants (isolation, pricing, double-booking, webhook replay)
+        run: pnpm --filter @bizbot/api test
+
+      - name: Seed the demo tenants, twice
+        # The seed is a shipped feature (ANOR CAFE, BARBER HOUSE, ZEBO BEAUTY) and it
+        # touches nearly every table, so a schema change that breaks it should break CI.
+        #
+        # Twice on purpose: the second run replaces the tenants the first created, which
+        # is how anyone refreshing their demo data actually uses it. A seed that only
+        # works against an empty database has been shipped here before.
+        run: |
+          pnpm db:seed
+          pnpm db:seed
+
+      - name: Check the seeded data satisfies its own invariants
+        run: pnpm db:check
+
+  # ── docker: prove the images still build ───────────────────────────────────
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the admin image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          build-args: APP=admin
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

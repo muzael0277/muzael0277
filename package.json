@@ -9,7 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "pnpm format:check && pnpm typecheck",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:invariants": "pnpm --filter @bizbot/api test:invariants",
@@ -19,7 +19,11 @@
     "db:seed": "pnpm --filter @bizbot/database seed",
     "db:reset": "pnpm --filter @bizbot/database reset",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "setup:env": "node tools/link-env.mjs",
+    "db:migrate:deploy": "pnpm --filter @bizbot/database migrate:deploy",
+    "e2e:admin": "node tools/e2e-admin.mjs",
+    "db:check": "pnpm --filter @bizbot/database check:integrity"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

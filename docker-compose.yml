@@ -1,0 +1,209 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BizBot OS — local development stack.
+#
+#   docker compose up -d postgres redis      # data only; run the apps with pnpm
+#   docker compose --profile full up --build # everything in containers
+#
+# The default (profile-less) services are just Postgres and Redis, because that
+# is the common case: iterate on the code with `pnpm dev` and let Docker own the
+# stateful parts. The `full` profile exists so the whole system can be brought
+# up from a clean checkout, which is also what CI-style smoke runs need.
+#
+# Postgres image: the booking exclusion constraint needs btree_gist and search
+# needs pg_trgm, both of which ship with the official image and are enabled by
+# the migrations (packages/database/prisma/migrations).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: bizbot
+
+x-api-env: &api-env
+  NODE_ENV: ${NODE_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Inside the network the hostnames are service names, not localhost.
+  DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-bizbot}?schema=public
+  REDIS_URL: redis://redis:6379
+  API_PORT: 4000
+  API_HOST: 0.0.0.0
+  API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
+  WEB_URL: ${WEB_URL:-http://localhost:3000}
+  ADMIN_URL: ${ADMIN_URL:-http://localhost:3001}
+  MINIAPP_URL: ${MINIAPP_URL:-http://localhost:3002}
+  # No defaults for these three on purpose: an image that silently boots with a
+  # placeholder signing key is worse than one that refuses to start.
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env (openssl rand -base64 48)}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env (openssl rand -base64 48)}
+  SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?set SECRETS_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
+  TELEGRAM_MODE: ${TELEGRAM_MODE:-polling}
+  TELEGRAM_WEBHOOK_BASE_URL: ${TELEGRAM_WEBHOOK_BASE_URL:-}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  STORAGE_LOCAL_PATH: /app/uploads
+  STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:4000/files}
+  ENABLE_DEMO_MODE: ${ENABLE_DEMO_MODE:-true}
+  ENABLE_SWAGGER: ${ENABLE_SWAGGER:-true}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-bizbot}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # -d matters: without it pg_isready reports ready before the named
+      # database exists, and the migrator starts too early on a fresh volume.
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bizbot}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ── one-shot: apply migrations, then exit ──────────────────────────────────
+  migrate:
+    profiles: ['full', 'migrate']
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: migrator
+    image: bizbot-migrator:local
+    environment: *api-env
+    command: ['pnpm', '--filter', '@bizbot/database', 'migrate:deploy']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  # ── one-shot: load the demo tenants (Anor Cafe, Barber House, Zebo Beauty) ──
+  seed:
+    profiles: ['seed']
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: migrator
+    image: bizbot-migrator:local
+    environment: *api-env
+    command: ['pnpm', '--filter', '@bizbot/database', 'seed']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
+  api:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: runtime
+    image: bizbot-api:local
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      # The API must not also drain the queues here: the worker below does that,
+      # and packages/config refuses RUN_WORKER_IN_API in production anyway.
+      RUN_WORKER_IN_API: 'false'
+    ports:
+      - '${API_PORT:-4000}:4000'
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    profiles: ['full']
+    # Same image as the API with a different entrypoint — one codebase, one
+    # dependency tree, no drift (docs/adr/0001-modular-monolith.md).
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: runtime
+    image: bizbot-api:local
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+    command: ['node', 'apps/api/dist/main.worker.js']
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      api:
+        condition: service_started
+
+  admin:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: admin
+        # Baked in at build time: Next inlines NEXT_PUBLIC_* into the client
+        # bundle, so this is the URL the browser uses, not a container hostname.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/v1}
+    image: bizbot-admin:local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - '${ADMIN_PORT:-3001}:3000'
+    depends_on:
+      api:
+        condition: service_started
+
+  miniapp:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: miniapp
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/v1}
+    image: bizbot-miniapp:local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - '${MINIAPP_PORT:-3002}:3000'
+    depends_on:
+      api:
+        condition: service_started
+
+  web:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: web
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/v1}
+    image: bizbot-web:local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+
+volumes:
+  postgres-data:
+  redis-data:
+  uploads:

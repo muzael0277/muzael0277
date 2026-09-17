@@ -20,7 +20,8 @@
     "seed": "tsx prisma/seed.ts",
     "build": "prisma generate && tsc -b",
     "test": "vitest run",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "check:integrity": "node --env-file-if-exists=.env scripts/check-data-integrity.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

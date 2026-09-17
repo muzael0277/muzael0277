@@ -1,0 +1,33 @@
+# Build context hygiene. Two reasons, in order of importance:
+#   1. .env must never reach an image layer — layers are shipped, .env is not.
+#   2. Copying node_modules/.next from the host would shadow what the image
+#      builds and silently ship a stale or wrong-platform artifact.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+coverage
+**/coverage
+.turbo
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+.git
+.github
+docs
+uploads
+tmp
+*.log
+.DS_Store
+.idea
+.vscode
