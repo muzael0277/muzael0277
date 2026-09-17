@@ -20,6 +20,8 @@
 | R16 | **Single Postgres as the bottleneck** | Scaling wall | Indexed for tenant-leading access, read replicas + PgBouncer as the first lever, analytics moved to rollups; sharding by tenant remains possible because every row already carries `tenantId` | Accepted for MVP |
 | R17 | **Cost overrun** for an early-stage startup | Runway | One VPS with Docker Compose runs the whole stack; no Kubernetes, no managed enterprise services until the load justifies them | Accepted |
 
+| R18 | **String ids stored as `text`, not native `uuid`** | Larger indexes, slower joins | Prisma maps `String @id @default(uuid())` to TEXT. Correctness is unaffected, but every index — and every index leads with `tenantId` — carries 37 bytes per key instead of 16. Migrating to `@db.Uuid` is cheap while nothing is in production and expensive afterwards; scheduled before the first paying tenant, with a single migration and no application change | Accepted for now |
+
 ## Watch list (revisit at 100 tenants)
 
 * Analytics on the OLTP database — move to rollup tables (started) then a read replica.

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@bizbot/database';
+import type { GuardedTransactionClient, Prisma } from '@bizbot/database';
 import { tenantContext } from '@bizbot/database';
 import { DomainError, ErrorCode } from '@bizbot/shared';
 import type { DomainEventPayloads, DomainEventTypeValue } from './event-types';
 
-/** Any Prisma transaction client. Events are always written through one. */
-export type TxClient = Prisma.TransactionClient;
+/** The guarded transaction client. Events are always written through one. */
+export type TxClient = GuardedTransactionClient;
 
 /**
  * Transactional outbox.

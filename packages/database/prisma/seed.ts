@@ -10,7 +10,7 @@
  */
 
 import { PrismaClient, type MemberRole, type Prisma } from '@prisma/client';
-import { randomBytes, scryptSync } from 'node:crypto';
+import * as argon2 from 'argon2';
 import { TEMPLATE_DEFINITIONS, withDependencies, type BusinessTemplateKey } from '@bizbot/rbac';
 import { formatOrderNumber, randomCode } from '@bizbot/shared';
 
@@ -24,11 +24,19 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !
   process.exit(1);
 }
 
-/** argon2 is used by the API; the seed uses scrypt to avoid a native dependency here. */
-function seedPasswordHash(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString('base64')}$${hash.toString('base64')}`;
+/**
+ * Must match the API's hashing exactly, or the demo accounts cannot log in — which is
+ * the whole point of seeding them. Keeping these in step is worth the native dependency.
+ */
+const ARGON2_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 65536,
+  timeCost: 3,
+  parallelism: 4,
+} as const;
+
+function seedPasswordHash(password: string): Promise<string> {
+  return argon2.hash(password, ARGON2_OPTIONS);
 }
 
 const DEMO_PASSWORD = 'BizBotDemo2026';
@@ -199,12 +207,16 @@ async function createTenant(spec: TenantSpec) {
 
   // Owner account. One person may own several businesses, so the user is reused when the
   // same email appears again.
+  const passwordHash = await seedPasswordHash(DEMO_PASSWORD);
   const user = await prisma.user.upsert({
     where: { email: spec.ownerEmail },
-    update: {},
+    // Re-seeding resets the demo credentials. With `update: {}` an account created by an
+    // earlier seed kept its old hash, so the documented demo password stopped working —
+    // exactly the thing a demo seed must never do.
+    update: { passwordHash, isActive: true, lockedUntil: null, failedLoginAttempts: 0 },
     create: {
       email: spec.ownerEmail,
-      passwordHash: seedPasswordHash(DEMO_PASSWORD),
+      passwordHash,
       emailVerifiedAt: new Date(),
       profile: { create: { firstName: spec.ownerFirstName, language: 'uz', phone: spec.phone } },
     },
@@ -538,6 +550,18 @@ async function seedOrderHistory(
         title: uz(`Buyurtma ${order.orderNumber}`, `Заказ ${order.orderNumber}`),
         amount: total, entityType: 'ORDER', entityId: order.id, occurredAt: createdAt,
       },
+    });
+  }
+
+  // Record where each day's numbering reached. Without this the sequence table starts at
+  // zero and the first real order after seeding collides with a seeded order number —
+  // a demo environment that breaks the moment someone actually uses it.
+  for (const [dayKey, value] of daySequences) {
+    const day = new Date(`${dayKey}T00:00:00Z`);
+    await prisma.orderSequence.upsert({
+      where: { tenantId_day: { tenantId, day } },
+      create: { tenantId, day, value },
+      update: { value },
     });
   }
 }

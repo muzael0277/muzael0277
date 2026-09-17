@@ -23,6 +23,21 @@ import { CrossTenantWriteError, MissingTenantContextError } from './errors';
  *    unscoped.
  */
 
+/**
+ * The Tenant row *is* the tenant, so its tenant key is its own primary key rather than a
+ * `tenantId` column. Without this it falls outside the guard entirely, and
+ * `prisma.tenant.findFirst()` quietly returns whichever tenant happens to be first in the
+ * table — which is how a booking service ended up reading another business's timezone and
+ * settings. The write was refused by the guard, but the read had already gone wrong.
+ */
+const TENANT_KEY_BY_MODEL: Record<string, string> = {
+  Tenant: 'id',
+};
+
+function tenantKeyFor(model: string): string {
+  return TENANT_KEY_BY_MODEL[model] ?? 'tenantId';
+}
+
 /** Models the guard must not scope, even though they may carry a tenantId. */
 const EXPLICITLY_UNSCOPED = new Set<string>([
   // Idempotency and dedup tables are consulted by the webhook gateway *before* a tenant
@@ -34,8 +49,12 @@ function buildScopedModelSet(): Set<string> {
   const scoped = new Set<string>();
   for (const model of Prisma.dmmf.datamodel.models) {
     if (EXPLICITLY_UNSCOPED.has(model.name)) continue;
-    if (model.fields.some((f) => f.name === 'tenantId')) scoped.add(model.name);
+    const key = tenantKeyFor(model.name);
+    if (model.fields.some((f) => f.name === key)) scoped.add(model.name);
   }
+  // Models with an explicit tenant key are always scoped, even if the key is not
+  // literally called tenantId.
+  for (const model of Object.keys(TENANT_KEY_BY_MODEL)) scoped.add(model);
   return scoped;
 }
 
@@ -73,16 +92,30 @@ function assertWhereTenant(
   tenantId: string,
   model: string,
   operation: string,
+  tenantKey = 'tenantId',
   depth = 0,
 ): void {
   if (depth > 3 || where === null || typeof where !== 'object') return;
 
-  for (const [key, value] of Object.entries(where as Record<string, unknown>)) {
+  const entries = Object.entries(where as Record<string, unknown>);
+
+  // The model's own tenant key, checked at the top level. For Tenant that key is `id`,
+  // and this check is what stops the merge below from silently *redirecting* an update
+  // aimed at another tenant onto the caller's own row — which is worse than failing,
+  // because the caller believes they edited something else.
+  if (depth === 0) {
+    const supplied = (where as Record<string, unknown>)[tenantKey];
+    if (typeof supplied === 'string' && supplied !== tenantId) {
+      throw new CrossTenantWriteError(model, operation, tenantId, supplied);
+    }
+  }
+
+  for (const [key, value] of entries) {
     if (key === 'tenantId' && typeof value === 'string' && value !== tenantId) {
       throw new CrossTenantWriteError(model, operation, tenantId, value);
     }
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      assertWhereTenant(value, tenantId, model, operation, depth + 1);
+      assertWhereTenant(value, tenantId, model, operation, tenantKey, depth + 1);
     }
   }
 }
@@ -96,19 +129,21 @@ function assertWhereTenant(
 function withTenantUniqueWhere(
   where: Record<string, unknown> | undefined,
   tenantId: string,
+  key: string,
 ): Record<string, unknown> {
-  return { ...(where ?? {}), tenantId };
+  return { ...(where ?? {}), [key]: tenantId };
 }
 
 /** Merges the tenant predicate with whatever the caller asked for, without clobbering it. */
 function withTenantWhere(
   where: Record<string, unknown> | undefined,
   tenantId: string,
+  key: string,
 ): Record<string, unknown> {
-  if (!where || Object.keys(where).length === 0) return { tenantId };
-  // AND rather than spread: a caller-supplied `tenantId` or `OR` must not be able to
-  // widen the scope, and `{...where, tenantId}` would let an `OR` clause escape it.
-  return { AND: [{ tenantId }, where] };
+  if (!where || Object.keys(where).length === 0) return { [key]: tenantId };
+  // AND rather than spread: a caller-supplied tenant key or `OR` must not be able to
+  // widen the scope, and a plain spread would let an `OR` clause escape it.
+  return { AND: [{ [key]: tenantId }, where] };
 }
 
 function assertTenantOnData(
@@ -116,10 +151,15 @@ function assertTenantOnData(
   tenantId: string,
   model: string,
   operation: string,
+  key: string,
 ): Record<string, unknown> {
-  const supplied = data.tenantId;
+  // Creating a Tenant is how a tenant comes into existence, so its own id must not be
+  // stamped with the current context. That path runs in system context anyway.
+  if (key === 'id') return data;
+
+  const supplied = data[key];
   if (supplied === undefined || supplied === null) {
-    return { ...data, tenantId };
+    return { ...data, [key]: tenantId };
   }
   if (supplied !== tenantId) {
     throw new CrossTenantWriteError(model, operation, tenantId, String(supplied));
@@ -147,10 +187,11 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
           }
 
           const { tenantId } = context;
+          const key = tenantKeyFor(model);
           const a = (args ?? {}) as AnyArgs;
 
           if (READ_OPERATIONS.has(operation)) {
-            return query({ ...a, where: withTenantWhere(a.where, tenantId) });
+            return query({ ...a, where: withTenantWhere(a.where, tenantId, key) });
           }
 
           if (UNIQUE_READ_OPERATIONS.has(operation)) {
@@ -168,33 +209,33 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
               // Cannot promote safely, so refuse rather than run an unscoped findUnique.
               throw new MissingTenantContextError(model, `${operation} (no ${promoted} delegate)`);
             }
-            return run({ ...a, where: withTenantWhere(a.where, tenantId) });
+            return run({ ...a, where: withTenantWhere(a.where, tenantId, key) });
           }
 
           if (UNIQUE_WRITE_OPERATIONS.has(operation)) {
-            assertWhereTenant(a.where, tenantId, model, operation);
-            const next: AnyArgs = { ...a, where: withTenantUniqueWhere(a.where, tenantId) };
+            assertWhereTenant(a.where, tenantId, model, operation, key);
+            const next: AnyArgs = { ...a, where: withTenantUniqueWhere(a.where, tenantId, key) };
             if (operation === 'upsert' && a.create && !Array.isArray(a.create)) {
-              next.create = assertTenantOnData(a.create, tenantId, model, operation);
+              next.create = assertTenantOnData(a.create, tenantId, model, operation, key);
             }
             return query(next);
           }
 
           if (BULK_WRITE_OPERATIONS.has(operation)) {
-            return query({ ...a, where: withTenantWhere(a.where, tenantId) });
+            return query({ ...a, where: withTenantWhere(a.where, tenantId, key) });
           }
 
           if (CREATE_OPERATIONS.has(operation)) {
             if (Array.isArray(a.data)) {
               return query({
                 ...a,
-                data: a.data.map((row) => assertTenantOnData(row, tenantId, model, operation)),
+                data: a.data.map((row) => assertTenantOnData(row, tenantId, model, operation, key)),
               });
             }
             if (a.data && typeof a.data === 'object') {
               return query({
                 ...a,
-                data: assertTenantOnData(a.data as Record<string, unknown>, tenantId, model, operation),
+                data: assertTenantOnData(a.data as Record<string, unknown>, tenantId, model, operation, key),
               });
             }
             return query(a);
@@ -215,6 +256,7 @@ function lowerFirst(value: string): string {
 
 /** Exposed for tests and for the boot-time self-check. */
 export const tenantGuardInternals = {
+  tenantKeyFor,
   buildScopedModelSet,
   withTenantWhere,
   withTenantUniqueWhere,

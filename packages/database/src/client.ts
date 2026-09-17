@@ -4,6 +4,19 @@ import { tenantContext, type TenantContextValue } from './tenant-context';
 
 export type GuardedPrismaClient = ReturnType<typeof applyTenantGuard>;
 
+/**
+ * The transaction client the guarded client hands to a `$transaction` callback.
+ *
+ * Prisma's own `Prisma.TransactionClient` describes the *unextended* client, so a service
+ * that types a `tx` parameter with it will not accept the guarded one. Deriving it from
+ * the guarded client keeps the tenant guard's behaviour inside transactions too, which is
+ * the whole point — a write inside a transaction must be scoped exactly like one outside.
+ */
+export type GuardedTransactionClient = Omit<
+  GuardedPrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 export interface CreateClientOptions {
   databaseUrl?: string;
   log?: ('query' | 'info' | 'warn' | 'error')[];

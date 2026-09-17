@@ -293,3 +293,78 @@ describe('composite-unique writes', () => {
     expect(updated.price).toBe(12345);
   });
 });
+
+describe('raw SQL is not covered by the guard', () => {
+  /**
+   * The guard rewrites the query builder's arguments; a raw query has none, so it runs
+   * completely unscoped. This is not a defect in the guard — it is a property of raw SQL,
+   * and the only defence is that every raw query carries its own tenant predicate.
+   *
+   * These tests pin that down: the first documents the hazard so nobody assumes raw
+   * queries are safe, the second asserts the shape every raw query in the codebase must
+   * have. A raw query added without a tenant filter is a cross-tenant hole (risk R13),
+   * and one was found in the loyalty service exactly this way.
+   */
+  it('a raw query without a tenant predicate sees every tenant', async () => {
+    const rows = await asA(() =>
+      prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Product" WHERE id IN (${productA}, ${productB})
+      `,
+    );
+    // Two rows, from two different tenants, while scoped to tenant A.
+    expect(rows).toHaveLength(2);
+  });
+
+  it('a raw query with an explicit tenant predicate is correctly scoped', async () => {
+    const rows = await asA(() =>
+      prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Product"
+        WHERE id IN (${productA}, ${productB})
+          AND "tenantId" = ${TENANT_A}
+      `,
+    );
+    expect(rows.map((r) => r.id)).toEqual([productA]);
+  });
+});
+
+describe('the Tenant model scopes on its own id', () => {
+  /**
+   * Tenant has no `tenantId` column — its primary key *is* the tenant. Before the guard
+   * knew that, the model fell outside scoping entirely and `tenant.findFirst()` returned
+   * whichever row happened to come first. Services that call it to read the timezone or
+   * settings were therefore reading an arbitrary business's configuration.
+   */
+  it('findFirst returns the current tenant, not an arbitrary one', async () => {
+    const fromA = await asA(() => prisma.tenant.findFirstOrThrow());
+    const fromB = await asB(() => prisma.tenant.findFirstOrThrow());
+    expect(fromA.id).toBe(TENANT_A);
+    expect(fromB.id).toBe(TENANT_B);
+  });
+
+  it('cannot read another tenant by id', async () => {
+    expect(await asA(() => prisma.tenant.findUnique({ where: { id: TENANT_B } }))).toBeNull();
+  });
+
+  it('cannot rename another tenant', async () => {
+    await expect(
+      asA(() => prisma.tenant.update({ where: { id: TENANT_B }, data: { name: 'Hijacked' } })),
+    ).rejects.toThrow();
+
+    const untouched = await asSystem(() => base.tenant.findUniqueOrThrow({ where: { id: TENANT_B } }));
+    expect(untouched.name).toBe('tenant-b');
+  });
+
+  it('counts only the current tenant', async () => {
+    expect(await asA(() => prisma.tenant.count())).toBe(1);
+  });
+
+  it('still allows tenant creation in system context, where no tenant exists yet', async () => {
+    const created = await asSystem(() =>
+      prisma.tenant.create({
+        data: { slug: 'guard-test-new', name: 'New', templateKey: 'CUSTOM' } as never,
+      }),
+    );
+    expect(created.slug).toBe('guard-test-new');
+    await asSystem(() => base.tenant.delete({ where: { id: created.id } }));
+  });
+});

@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { MembersModule } from './modules/members/members.module';
 import { HealthModule } from './modules/health/health.module';
+import { BusinessModule } from './modules/business.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
@@ -41,6 +42,7 @@ import { RequestContextMiddleware } from './common/interceptors/request-context.
     AuthModule,
     TenantsModule,
     MembersModule,
+    BusinessModule,
     HealthModule,
   ],
   providers: [
