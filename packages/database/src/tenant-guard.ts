@@ -43,9 +43,13 @@ const READ_OPERATIONS = new Set([
   'findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy',
 ]);
 const UNIQUE_READ_OPERATIONS = new Set(['findUnique', 'findUniqueOrThrow']);
-const WRITE_WHERE_OPERATIONS = new Set([
-  'update', 'updateMany', 'delete', 'deleteMany', 'upsert', 'updateManyAndReturn',
-]);
+/**
+ * Singular writes take a *unique* where clause. Prisma rejects an `AND` wrapper there,
+ * so these get the tenant merged as a plain field instead — semantically identical,
+ * since Prisma ANDs every top-level key in a where.
+ */
+const UNIQUE_WRITE_OPERATIONS = new Set(['update', 'delete', 'upsert']);
+const BULK_WRITE_OPERATIONS = new Set(['updateMany', 'deleteMany', 'updateManyAndReturn']);
 const CREATE_OPERATIONS = new Set(['create', 'createMany', 'createManyAndReturn']);
 
 type AnyArgs = Record<string, unknown> & {
@@ -54,6 +58,47 @@ type AnyArgs = Record<string, unknown> & {
   create?: Record<string, unknown>;
   update?: Record<string, unknown>;
 };
+
+/**
+ * Refuses a where clause that names a different tenant.
+ *
+ * A composite unique like `{ tenantId_module: { tenantId: <other>, module: 'ORDERS' } }`
+ * would otherwise match nothing and fall through to an upsert's `create` — quietly
+ * producing a row in the *caller's* tenant when they asked for someone else's. No data
+ * leaks, but the caller's intent was cross-tenant and silently doing something else is
+ * worse than failing. Caught by a test rather than by review.
+ */
+function assertWhereTenant(
+  where: unknown,
+  tenantId: string,
+  model: string,
+  operation: string,
+  depth = 0,
+): void {
+  if (depth > 3 || where === null || typeof where !== 'object') return;
+
+  for (const [key, value] of Object.entries(where as Record<string, unknown>)) {
+    if (key === 'tenantId' && typeof value === 'string' && value !== tenantId) {
+      throw new CrossTenantWriteError(model, operation, tenantId, value);
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      assertWhereTenant(value, tenantId, model, operation, depth + 1);
+    }
+  }
+}
+
+/**
+ * Merges the tenant into a unique where clause.
+ *
+ * `tenantId` is applied last so a caller-supplied value cannot override it, and the
+ * clause stays a valid WhereUniqueInput — which `AND` would not be.
+ */
+function withTenantUniqueWhere(
+  where: Record<string, unknown> | undefined,
+  tenantId: string,
+): Record<string, unknown> {
+  return { ...(where ?? {}), tenantId };
+}
 
 /** Merges the tenant predicate with whatever the caller asked for, without clobbering it. */
 function withTenantWhere(
@@ -126,12 +171,17 @@ export function applyTenantGuard<T extends PrismaClient>(client: T) {
             return run({ ...a, where: withTenantWhere(a.where, tenantId) });
           }
 
-          if (WRITE_WHERE_OPERATIONS.has(operation)) {
-            const next: AnyArgs = { ...a, where: withTenantWhere(a.where, tenantId) };
+          if (UNIQUE_WRITE_OPERATIONS.has(operation)) {
+            assertWhereTenant(a.where, tenantId, model, operation);
+            const next: AnyArgs = { ...a, where: withTenantUniqueWhere(a.where, tenantId) };
             if (operation === 'upsert' && a.create && !Array.isArray(a.create)) {
               next.create = assertTenantOnData(a.create, tenantId, model, operation);
             }
             return query(next);
+          }
+
+          if (BULK_WRITE_OPERATIONS.has(operation)) {
+            return query({ ...a, where: withTenantWhere(a.where, tenantId) });
           }
 
           if (CREATE_OPERATIONS.has(operation)) {
@@ -164,4 +214,10 @@ function lowerFirst(value: string): string {
 }
 
 /** Exposed for tests and for the boot-time self-check. */
-export const tenantGuardInternals = { buildScopedModelSet, withTenantWhere, EXPLICITLY_UNSCOPED };
+export const tenantGuardInternals = {
+  buildScopedModelSet,
+  withTenantWhere,
+  withTenantUniqueWhere,
+  assertWhereTenant,
+  EXPLICITLY_UNSCOPED,
+};

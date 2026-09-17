@@ -250,3 +250,46 @@ describe('guarded model registry', () => {
     }
   });
 });
+
+describe('composite-unique writes', () => {
+  /**
+   * Regression: the guard originally wrapped every write `where` in an AND, which Prisma
+   * rejects for update/delete/upsert because those need a valid WhereUniqueInput. It
+   * surfaced as an opaque 500 when a tenant toggled a module — the sort of bug that only
+   * appears once the code is actually exercised.
+   */
+  it('upserts on a composite unique key without breaking the where clause', async () => {
+    const upserted = await asA(() =>
+      prisma.tenantModule.upsert({
+        where: { tenantId_module: { tenantId: TENANT_A, module: 'CATALOG' } },
+        create: { module: 'CATALOG', enabled: true } as never,
+        update: { enabled: true },
+      }),
+    );
+    expect(upserted.enabled).toBe(true);
+    expect(upserted.tenantId).toBe(TENANT_A);
+  });
+
+  it('still refuses an upsert aimed at another tenant', async () => {
+    await expect(
+      asA(() =>
+        prisma.tenantModule.upsert({
+          where: { tenantId_module: { tenantId: TENANT_B, module: 'ORDERS' } },
+          create: { module: 'ORDERS', enabled: true } as never,
+          update: { enabled: true },
+        }),
+      ),
+    ).rejects.toThrow();
+
+    expect(
+      await asSystem(() => base.tenantModule.count({ where: { tenantId: TENANT_B } })),
+    ).toBe(0);
+  });
+
+  it('updates by a plain id without an AND wrapper', async () => {
+    const updated = await asA(() =>
+      prisma.product.update({ where: { id: productA }, data: { price: 12345 } }),
+    );
+    expect(updated.price).toBe(12345);
+  });
+});
