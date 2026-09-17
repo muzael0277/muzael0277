@@ -23,6 +23,8 @@ services:
   api:
     ports: !override []
     environment:
+      # Explicit here even though the image sets it, so the setting is visible in
+      # the file someone reads when deploying.
       NODE_ENV: production
       ENABLE_SWAGGER: 'false'
       RUN_WORKER_IN_API: 'false'

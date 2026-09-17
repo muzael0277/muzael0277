@@ -10,6 +10,24 @@ import { z } from 'zod';
 
 const booleanish = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
 
+/**
+ * An optional setting that is present but empty means "not set".
+ *
+ * Docker Compose, CI and shell exports all render an unset variable as an empty
+ * string rather than omitting it, and `z.string().url().optional()` rejects `""` instead
+ * of skipping it. That refused to boot the API for anyone who had not filled in a
+ * webhook URL they do not need yet.
+ */
+const optionalUrl = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().url().optional(),
+);
+
+const optionalString = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().optional(),
+);
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -44,17 +62,17 @@ export const envSchema = z
     TELEGRAM_MODE: z.enum(['webhook', 'polling', 'disabled']).default('polling'),
     TELEGRAM_API_BASE: z.string().url().default('https://api.telegram.org'),
     /** Public base for webhook registration; must be https and reachable by Telegram. */
-    TELEGRAM_WEBHOOK_BASE_URL: z.string().url().optional(),
+    TELEGRAM_WEBHOOK_BASE_URL: optionalUrl,
 
     // --- Storage ---
     STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
     STORAGE_LOCAL_PATH: z.string().default('./uploads'),
     STORAGE_PUBLIC_URL: z.string().url().default('http://localhost:4000/files'),
-    S3_ENDPOINT: z.string().url().optional(),
+    S3_ENDPOINT: optionalUrl,
     S3_REGION: z.string().default('us-east-1'),
-    S3_BUCKET: z.string().optional(),
-    S3_ACCESS_KEY_ID: z.string().optional(),
-    S3_SECRET_ACCESS_KEY: z.string().optional(),
+    S3_BUCKET: optionalString,
+    S3_ACCESS_KEY_ID: optionalString,
+    S3_SECRET_ACCESS_KEY: optionalString,
 
     // --- Queues ---
     QUEUE_PREFIX: z.string().default('bizbot'),

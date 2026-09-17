@@ -28,6 +28,22 @@ const REDACTED_KEYS = [
   'apiKey',
 ];
 
+/**
+ * Pretty output is a development convenience, and `pino-pretty` is a dev dependency —
+ * absent from the production image. Asking pino for a transport that is not installed
+ * throws at module load, so the whole process dies at boot because it could not make
+ * the logs colourful. Check first, and fall back to JSON.
+ */
+function prettyTransport(): pino.LoggerOptions['transport'] | undefined {
+  if (process.env.NODE_ENV === 'production') return undefined;
+  try {
+    require.resolve('pino-pretty');
+  } catch {
+    return undefined;
+  }
+  return { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } };
+}
+
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   redact: {
@@ -41,14 +57,7 @@ export const logger = pino({
     ],
     censor: '[redacted]',
   },
-  ...(process.env.NODE_ENV === 'development'
-    ? {
-        transport: {
-          target: 'pino-pretty',
-          options: { colorize: true, translateTime: 'HH:MM:ss' },
-        },
-      }
-    : {}),
+  transport: prettyTransport(),
 });
 
 /** Adapts pino to Nest's LoggerService so framework logs share the same stream. */
